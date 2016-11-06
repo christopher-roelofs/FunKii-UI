@@ -86,9 +86,14 @@ class RootWindow(tk.Tk):
         self.region_usa=tk.BooleanVar(value=False)
         self.region_eur=tk.BooleanVar(value=False)
         self.region_jpn=tk.BooleanVar(value=False)
+        self.filter_usa=tk.BooleanVar(value=True)
+        self.filter_eur=tk.BooleanVar(value=True)
+        self.filter_jpn=tk.BooleanVar(value=True)
+        self.usa_selections=[]
+        self.eur_selections=[]
+        self.jpn_selections=[]
         self.errors=0
         
-        self.load_title_data()
         self.load_program_revisions()
 
         # Tab 1
@@ -117,6 +122,7 @@ class RootWindow(tk.Tk):
         t1_frm6.pack()
         
         # Tab2
+        t2_frm0=ttk.Frame(self.tab2)
         t2_frm1=ttk.Frame(self.tab2)
         t2_frm2=ttk.Frame(self.tab2)   
         t2_frm3=ttk.Frame(self.tab2)
@@ -126,10 +132,13 @@ class RootWindow(tk.Tk):
         t2_frm7=ttk.Frame(self.tab2)
         t2_frm8=ttk.Frame(self.tab2)
         
-        lbl=ttk.Label(t2_frm1,text='Enter as many Title ID\'s as you would like to the list. Entering a key is optional and only needed if you are NOT using\nthe online keys or online tickets method. If you are NOT using one of the online methods, then you must provide\na key for every title you add to the list or it will fail. Use the selection box to make life easier, however, it may not be a\ncomplete list of titles. You can still enter title ID and key manually. P.S. the selection box has auto-complete').pack(padx=5,pady=7)
+        lbl=ttk.Label(t2_frm0,text='Enter as many Title ID\'s as you would like to the list. Entering a key is optional and only needed if you are NOT using\nthe online keys or online tickets method. If you are NOT using one of the online methods, then you must provide\na key for every title you add to the list or it will fail. Use the selection box to make life easier, however, it may not be a\ncomplete list of titles. You can still enter title ID and key manually. P.S. the selection box has auto-complete').pack(padx=5,pady=7)
+        lbl=ttk.Label(t2_frm1,text='Choose regions to display:').pack(padx=5,pady=10,side='left')
+        filter_box_usa=ttk.Checkbutton(t2_frm1,text='USA',variable=self.filter_usa,command=lambda:self.populate_selection_box(download_data=False)).pack(padx=5,pady=10,side='left')
+        filter_box_eur=ttk.Checkbutton(t2_frm1,text='EUR',variable=self.filter_eur,command=lambda:self.populate_selection_box(download_data=False)).pack(padx=5,pady=10,side='left')
+        filter_box_jpn=ttk.Checkbutton(t2_frm1,text='JPN',variable=self.filter_jpn,command=lambda:self.populate_selection_box(download_data=False)).pack(padx=5,pady=10,side='left')
         lbl=ttk.Label(t2_frm2,text='Selection:').pack(padx=5,pady=7,side='left')
         self.selection_box=AutocompleteCombobox(t2_frm2,values=(self.selection_list),width=65)
-        self.selection_box.set_completion_list(self.selection_list)
         self.selection_box.bind('<<ComboboxSelected>>', self.selection_box_changed)
         self.selection_box.bind('<Return>', self.selection_box_changed)
         self.selection_box.pack(padx=5,pady=7,side='left')
@@ -144,18 +153,21 @@ class RootWindow(tk.Tk):
         lbl=ttk.Label(t2_frm5,text='Download list:').pack()
         dl_scroller=ttk.Scrollbar(t2_frm5,orient='vertical')
         dl_scroller.pack(side='right',fill='y')
-        self.dl_listbox=tk.Listbox(t2_frm5,width=50,height=12)
+        self.dl_listbox=tk.Listbox(t2_frm5,width=65,height=12)
         self.dl_listbox.pack(fill='y')
         self.dl_listbox.config(yscrollcommand=dl_scroller.set)
         dl_scroller.config(command=self.dl_listbox.yview)
-        btn=ttk.Button(t2_frm6,text='Remove selected',command=self.remove_from_list).pack(padx=20,pady=10,side='left',anchor='w')
-        btn=ttk.Button(t2_frm6,text='Clear list',command=self.clear_list).pack(padx=20,pady=10,side='left')
+        btn=ttk.Button(t2_frm6,text='Remove selected',command=self.remove_from_list).pack(padx=3,pady=20,side='left',anchor='w')
+        btn=ttk.Button(t2_frm6,text='Clear list',command=self.clear_list).pack(padx=3,pady=20,side='left')
         lbl=ttk.Label(t2_frm7,text='Add an entry to the download list one at a time.\nWhen you are done, click on a download button\nbelow based on your preferred method. Don\'t\nforget to visit the options tab before you\ndownload.').pack(padx=20,pady=10)
         btn=ttk.Button(t2_frm8,text='Download using online tickets',width=30,command=lambda:self.download_clicked(1)).pack(padx=5,pady=10,side='left')
         btn=ttk.Button(t2_frm8,text='Download using online keys',width=30,command=lambda:self.download_clicked(2)).pack(padx=5,pady=10,side='left')
         btn=ttk.Button(t2_frm8,text='Download using entered keys',width=30,command=lambda:self.download_clicked(3)).pack(padx=5,pady=10,side='left')
+
+        self.populate_selection_box(download_data=False)
         
-        t2_frm1.grid(row=1,column=1,columnspan=3,sticky='w')
+        t2_frm0.grid(row=0,column=1,columnspan=3,sticky='w')
+        t2_frm1.grid(row=1,column=1,sticky='w')
         t2_frm2.grid(row=2,column=1,columnspan=3,sticky='w')
         t2_frm3.grid(row=3,column=1,sticky='w')
         t2_frm4.grid(row=4,column=1,sticky='w')
@@ -270,6 +282,10 @@ class RootWindow(tk.Tk):
         t4_frm10.grid(row=10,column=1,padx=25,sticky='w')
         t4_frm11.grid(row=11,column=1,padx=25,sticky='w')
 
+
+
+
+
     def update_application(self,app,zip_file):
         if app == 'fnku':
             self.download_zip(self.versions['fnku_url'].split('releases')[0]+'archive'+'/v'+zip_file+'.zip')
@@ -311,19 +327,35 @@ class RootWindow(tk.Tk):
         except URLError as e:
             print ("Error:", e.reason, url)
                    
-    def populate_selection_box(self):
-        keysite = fnku.get_keysite()
-        
-        print(u'Downloading/updating data from {0}'.format(keysite))
+    def populate_selection_box(self,download_data=True):
+        if download_data:
+            keysite = fnku.get_keysite()
+            print(u'Downloading/updating data from {0}'.format(keysite))
 
-        if not fnku.download_file('https://{0}/json'.format(keysite), 'titlekeys.json', 3):
-            print('ERROR: Could not download data file...\n')
-        else:
-            print('DONE....Selection box was updated succesfully')
-            
-        self.load_title_data()
-        self.selection_box.set('')
-        self.selection_box.configure(values=(self.selection_list))
+            if not fnku.download_file('https://{0}/json'.format(keysite), 'titlekeys.json', 3):
+                print('ERROR: Could not download data file...\n')
+            else:
+                print('DONE....Downloaded titlekeys.json succesfully')
+        try:
+            self.selection_list=[]    
+            self.load_title_data()
+            if self.filter_usa.get():
+                for i in self.usa_selections:
+                    self.selection_list.append(i)
+            if self.filter_eur.get():
+                for i in self.eur_selections:
+                    self.selection_list.append(i)
+            if self.filter_jpn.get():
+                for i in self.jpn_selections:
+                    self.selection_list.append(i)
+            self.selection_list.sort()
+            self.selection_box.set('')
+            self.selection_box.configure(values=(self.selection_list))
+            self.selection_box.set_completion_list(self.selection_list)
+            print('Succesfully populated the selection box..')
+        except Exception as e:
+            print('Something happened while trying to populate the selection box...')
+            print('ERROR:' ,e)
 
     def selection_box_changed(self,*args):
         user_selected_raw=self.selection_box.get()
@@ -338,12 +370,13 @@ class RootWindow(tk.Tk):
                 self.id_box.insert('end',titleid)
                 if key != 'None': self.key_box.insert('end',key)
     
-    def load_title_data(self):
+    def load_title_data(self):       
+        self.title_data=[]
         try:
-            print('Now parsing titlekeys.json')
             with open('titlekeys.json') as td:
-                title_data=json.load(td)
+                title_data=json.load(td)                
             self.errors=0
+            print('Now parsing titlekeys.json')
             for i in title_data:
                 try:
                     if i['name']:
@@ -355,10 +388,16 @@ class RootWindow(tk.Tk):
                         entry2=(name+'  --'+region)
                         if not entry in self.title_data:
                             self.title_data.append(entry)
-                            if not entry2 in self.selection_list:
-                                self.selection_list.append(entry2)
-                            self.selection_list.sort()
-
+                            if region == 'USA':
+                                if not entry2 in self.usa_selections:
+                                    self.usa_selections.append(entry2)
+                            elif region == 'EUR':
+                                if not entry2 in self.eur_selections:
+                                        self.eur_selections.append(entry2)
+                            elif region == 'JPN':
+                                if not entry2 in self.jpn_selections:
+                                    self.jpn_selections.append(entry2)
+                                    
                 #Some entries in titlekeys.json are invalid,or just not encoding right, or I'm doing something wrong.
                 #Passing errors silently for now.
                 except Exception as e:
@@ -387,6 +426,7 @@ class RootWindow(tk.Tk):
         
     def add_to_list(self):
         titleid = self.id_box.get().strip()
+        name = self.selection_box.get().strip()
         if self.sanity_check_input(titleid,'title'):
             pass
         else:
@@ -400,7 +440,7 @@ class RootWindow(tk.Tk):
             else:
                 print('Bad Key. Must be a 16 digit hexadecimal.')
                 return
-        entry=(titleid,key)
+        entry=(name,titleid,key)
         if not entry in self.download_list: self.download_list.append(entry)
         self.populate_dl_listbox()
 
@@ -498,11 +538,11 @@ class RootWindow(tk.Tk):
         tickets_only=self.tickets_only.get()
         simulate=self.simulate_mode.get()
         for i in self.download_list:
-            if not i[0] in title_list:
-                title_list.append(i[0])
-            if i[1]:
-                if not i[1] in key_list:
-                    key_list.append(i[1])
+            if not i[1] in title_list:
+                title_list.append(i[1])
+            if i[2]:
+                if not i[2] in key_list:
+                    key_list.append(i[2])
         if dl_method == 1:
             fnku.main(titles=title_list,keys=key_list,onlinetickets=True,output_dir=output_dir,retry_count=retry_count,
                      patch_demo=patch_demo,patch_dlc=patch_dlc,tickets_only=tickets_only,simulate=simulate)
