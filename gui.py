@@ -29,6 +29,7 @@ targetversion="FunKiiU v2.2"
 ### I'm getting about 80 titles not parsing from titlekeys.json
 ### properly. To see the error output, set DEBUG = True. The
 ### parsing code is found in load_title_data beginning on line 337.
+
 DEBUG = False
 
 if os.name == 'nt':
@@ -85,6 +86,7 @@ class RootWindow(tk.Tk):
         self.region_usa=tk.BooleanVar(value=False)
         self.region_eur=tk.BooleanVar(value=False)
         self.region_jpn=tk.BooleanVar(value=False)
+        self.errors=0
         
         self.load_title_data()
         self.load_program_revisions()
@@ -324,11 +326,13 @@ class RootWindow(tk.Tk):
         self.selection_box.configure(values=(self.selection_list))
 
     def selection_box_changed(self,*args):
-        user_selected=self.selection_box.get().split('--')[0].strip()
+        user_selected_raw=self.selection_box.get()
+        user_selected=user_selected_raw.split('--')[0].strip()
+        sel_region=user_selected_raw.split('--')[1].strip()
         for i in self.title_data:
-            if i[0] == user_selected:
-                titleid=i[1]
-                key=i[2]
+            if i[0] == user_selected and i[1] == sel_region:
+                titleid=i[2]
+                key=i[3]
                 self.id_box.delete('0',tk.END)
                 self.key_box.delete('0',tk.END)
                 self.id_box.insert('end',titleid)
@@ -339,21 +343,21 @@ class RootWindow(tk.Tk):
             print('Now parsing titlekeys.json')
             with open('titlekeys.json') as td:
                 title_data=json.load(td)
-            errors=0
+            self.errors=0
             for i in title_data:
                 try:
                     if i['name']:
-                        name=str(i['name'])
+                        name=str(i['name']).lower().capitalize()
                         titleid=str(i['titleID'])
                         titlekey=str(i['titleKey'])
                         region=str(i['region'])
-                        entry=(name,titleid,titlekey)
+                        entry=(name,region,titleid,titlekey)
                         entry2=(name+'  --'+region)
                         if not entry in self.title_data:
                             self.title_data.append(entry)
-                        if not entry2 in self.selection_list:
-                            self.selection_list.append(entry2)
-                        self.selection_list.sort()
+                            if not entry2 in self.selection_list:
+                                self.selection_list.append(entry2)
+                            self.selection_list.sort()
 
                 #Some entries in titlekeys.json are invalid,or just not encoding right, or I'm doing something wrong.
                 #Passing errors silently for now.
@@ -361,10 +365,10 @@ class RootWindow(tk.Tk):
                     pass
                     if DEBUG:
                         print('ERROR LOADING ',e)
-                        errors+=1
+                        self.errors+=1
         except IOError:
             print('No titlekeys.json file was found. The selection box will be empty')
-        if DEBUG: print(str(errors)+' Titles did not load correctly.')
+        if DEBUG: print(str(self.errors)+' Titles did not load correctly.')
          
     def sanity_check_input(self,val,chktype):
         try:
