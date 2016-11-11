@@ -89,9 +89,12 @@ class RootWindow(tk.Tk):
         self.filter_usa=tk.BooleanVar(value=True)
         self.filter_eur=tk.BooleanVar(value=True)
         self.filter_jpn=tk.BooleanVar(value=True)
-        self.usa_selections=[]
-        self.eur_selections=[]
-        self.jpn_selections=[]
+        self.filter_game=tk.BooleanVar(value=True)
+        self.filter_dlc=tk.BooleanVar(value=True)
+        self.filter_update=tk.BooleanVar(value=True)
+        self.usa_selections={'game':[],'dlc':[],'update':[]}
+        self.eur_selections={'game':[],'dlc':[],'update':[]}
+        self.jpn_selections={'game':[],'dlc':[],'update':[]}
         self.errors=0
         
         self.load_program_revisions()
@@ -131,50 +134,59 @@ class RootWindow(tk.Tk):
         t2_frm6=ttk.Frame(self.tab2)
         t2_frm7=ttk.Frame(self.tab2)
         t2_frm8=ttk.Frame(self.tab2)
+        t2_frm9=ttk.Frame(self.tab2)
         
         lbl=ttk.Label(t2_frm0,text='Enter as many Title ID\'s as you would like to the list. Entering a key is optional and only needed if you are NOT using\nthe online keys or online tickets method. If you are NOT using one of the online methods, then you must provide\na key for every title you add to the list or it will fail. Use the selection box to make life easier, however, it may not be a\ncomplete list of titles. You can still enter title ID and key manually. P.S. the selection box has auto-complete').pack(padx=5,pady=7)
-        lbl=ttk.Label(t2_frm1,text='Choose regions to display:').pack(padx=5,pady=10,side='left')
-        filter_box_usa=ttk.Checkbutton(t2_frm1,text='USA',variable=self.filter_usa,command=lambda:self.populate_selection_box(download_data=False)).pack(padx=5,pady=10,side='left')
-        filter_box_eur=ttk.Checkbutton(t2_frm1,text='EUR',variable=self.filter_eur,command=lambda:self.populate_selection_box(download_data=False)).pack(padx=5,pady=10,side='left')
-        filter_box_jpn=ttk.Checkbutton(t2_frm1,text='JPN',variable=self.filter_jpn,command=lambda:self.populate_selection_box(download_data=False)).pack(padx=5,pady=10,side='left')
-        lbl=ttk.Label(t2_frm2,text='Selection:').pack(padx=5,pady=7,side='left')
-        self.selection_box=AutocompleteCombobox(t2_frm2,values=(self.selection_list),width=65)
+        lbl=ttk.Label(t2_frm1,text='Choose regions to display:').pack(padx=5,pady=5,side='left')
+        filter_box_usa=ttk.Checkbutton(t2_frm1,text='USA',variable=self.filter_usa,command=lambda:self.populate_selection_box(download_data=False)).pack(padx=5,pady=5,side='left')
+        filter_box_eur=ttk.Checkbutton(t2_frm1,text='EUR',variable=self.filter_eur,command=lambda:self.populate_selection_box(download_data=False)).pack(padx=5,pady=5,side='left')
+        filter_box_jpn=ttk.Checkbutton(t2_frm1,text='JPN',variable=self.filter_jpn,command=lambda:self.populate_selection_box(download_data=False)).pack(padx=5,pady=5,side='left')
+        lbl=ttk.Label(t2_frm2,text='Choose content to display:').pack(padx=5,pady=5,side='left')
+        filter_box_usa=ttk.Checkbutton(t2_frm2,text='Game',variable=self.filter_game,command=lambda:self.populate_selection_box(download_data=False)).pack(padx=5,pady=5,side='left')
+        filter_box_eur=ttk.Checkbutton(t2_frm2,text='Update',variable=self.filter_update,command=lambda:self.populate_selection_box(download_data=False)).pack(padx=5,pady=5,side='left')
+        filter_box_jpn=ttk.Checkbutton(t2_frm2,text='DLC',variable=self.filter_dlc,command=lambda:self.populate_selection_box(download_data=False)).pack(padx=5,pady=5,side='left')
+        lbl=ttk.Label(t2_frm3,text='Selection:').pack(padx=5,pady=7,side='left')
+        self.selection_box=AutocompleteCombobox(t2_frm3,values=(self.selection_list),width=73)
         self.selection_box.bind('<<ComboboxSelected>>', self.selection_box_changed)
         self.selection_box.bind('<Return>', self.selection_box_changed)
+        self.selection_box.bind('<<NoHits>>', self.clear_id_key_boxes)
+        
         self.selection_box.pack(padx=5,pady=7,side='left')
-        btn=ttk.Button(t2_frm2,text='refresh',width=8,command=self.populate_selection_box).pack(side='left')
-        lbl=ttk.Label(t2_frm3,text='Title ID:').pack(padx=5,pady=7,side='left')
-        self.id_box=ttk.Entry(t2_frm3,width=40)
+        btn=ttk.Button(t2_frm3,text='refresh',width=8,command=self.populate_selection_box).pack(side='left')
+        lbl=ttk.Label(t2_frm4,text='Title ID:').pack(padx=5,pady=7,side='left')
+        self.id_box=ttk.Entry(t2_frm4,width=40)
         self.id_box.pack(padx=5,pady=5,side='left')
-        btn=ttk.Button(t2_frm3,text='Add to list',command=self.add_to_list).pack(padx=5,pady=5,side='left')
-        lbl=ttk.Label(t2_frm4,text='Key:').pack(padx=5,pady=7,side='left')
-        self.key_box=ttk.Entry(t2_frm4,width=40)
+        btn=ttk.Button(t2_frm4,text='Add to list',command=self.add_to_list).pack(padx=5,pady=5,side='left')
+        lbl=ttk.Label(t2_frm5,text='Key:').pack(padx=5,pady=7,side='left')
+        self.key_box=ttk.Entry(t2_frm5,width=40)
         self.key_box.pack(padx=5,pady=5,side='left')
-        lbl=ttk.Label(t2_frm5,text='Download list:').pack()
-        dl_scroller=ttk.Scrollbar(t2_frm5,orient='vertical')
+        lbl=ttk.Label(t2_frm6,text='Download list:').pack()
+        lbl=ttk.Label(t2_frm6,text='Items marked with ** have an entered key provided').pack()
+        dl_scroller=ttk.Scrollbar(t2_frm6,orient='vertical')
         dl_scroller.pack(side='right',fill='y')
-        self.dl_listbox=tk.Listbox(t2_frm5,width=65,height=12)
+        self.dl_listbox=tk.Listbox(t2_frm6,width=73,height=12)
         self.dl_listbox.pack(fill='y')
         self.dl_listbox.config(yscrollcommand=dl_scroller.set)
         dl_scroller.config(command=self.dl_listbox.yview)
-        btn=ttk.Button(t2_frm6,text='Remove selected',command=self.remove_from_list).pack(padx=3,pady=20,side='left',anchor='w')
-        btn=ttk.Button(t2_frm6,text='Clear list',command=self.clear_list).pack(padx=3,pady=20,side='left')
-        lbl=ttk.Label(t2_frm7,text='Add an entry to the download list one at a time.\nWhen you are done, click on a download button\nbelow based on your preferred method. Don\'t\nforget to visit the options tab before you\ndownload.').pack(padx=20,pady=10)
-        btn=ttk.Button(t2_frm8,text='Download using online tickets',width=30,command=lambda:self.download_clicked(1)).pack(padx=5,pady=10,side='left')
-        btn=ttk.Button(t2_frm8,text='Download using online keys',width=30,command=lambda:self.download_clicked(2)).pack(padx=5,pady=10,side='left')
-        btn=ttk.Button(t2_frm8,text='Download using entered keys',width=30,command=lambda:self.download_clicked(3)).pack(padx=5,pady=10,side='left')
+        btn=ttk.Button(t2_frm7,text='Remove selected',command=self.remove_from_list).pack(padx=3,pady=20,side='left',anchor='w')
+        btn=ttk.Button(t2_frm7,text='Clear list',command=self.clear_list).pack(padx=3,pady=20,side='left')
+        lbl=ttk.Label(t2_frm8,text='Add an entry to the download list one at a time.\nWhen you are done, click on a download button\nbelow based on your preferred method. Don\'t\nforget to visit the options tab before you\ndownload.').pack(padx=20,pady=10)
+        btn=ttk.Button(t2_frm9,text='Download using online tickets',width=30,command=lambda:self.download_clicked(1)).pack(padx=5,pady=10,side='left')
+        btn=ttk.Button(t2_frm9,text='Download using online keys',width=30,command=lambda:self.download_clicked(2)).pack(padx=5,pady=10,side='left')
+        btn=ttk.Button(t2_frm9,text='Download using entered keys',width=30,command=lambda:self.download_clicked(3)).pack(padx=5,pady=10,side='left')
 
         self.populate_selection_box(download_data=False)
         
         t2_frm0.grid(row=0,column=1,columnspan=3,sticky='w')
         t2_frm1.grid(row=1,column=1,sticky='w')
-        t2_frm2.grid(row=2,column=1,columnspan=3,sticky='w')
-        t2_frm3.grid(row=3,column=1,sticky='w')
+        t2_frm2.grid(row=2,column=1,sticky='w')
+        t2_frm3.grid(row=3,column=1,columnspan=3,sticky='w')
         t2_frm4.grid(row=4,column=1,sticky='w')
-        t2_frm5.grid(row=5,column=2,rowspan=3,columnspan=2,padx=5,sticky='e')
-        t2_frm6.grid(row=8,column=3,sticky='e')
-        t2_frm7.grid(row=5,column=1,sticky='w')
-        t2_frm8.grid(row=9,column=1,columnspan=3)
+        t2_frm5.grid(row=5,column=1,sticky='w')
+        t2_frm6.grid(row=6,column=2,rowspan=3,columnspan=2,padx=5,sticky='e')
+        t2_frm7.grid(row=9,column=3,sticky='e')
+        t2_frm8.grid(row=6,column=1,sticky='w')
+        t2_frm9.grid(row=10,column=1,columnspan=3)
         
         # Tab3
         t3_frm1=ttk.Frame(tab3)
@@ -337,17 +349,42 @@ class RootWindow(tk.Tk):
             else:
                 print('DONE....Downloaded titlekeys.json succesfully')
         try:
+            self.clear_id_key_boxes()
             self.selection_list=[]    
             self.load_title_data()
             if self.filter_usa.get():
-                for i in self.usa_selections:
-                    self.selection_list.append(i)
+                if self.filter_game.get():
+                    for i in self.usa_selections['game']:
+                        self.selection_list.append(i)
+                if self.filter_dlc.get():
+                    for i in self.usa_selections['dlc']:
+                        self.selection_list.append(i)
+                if self.filter_update.get():
+                    for i in self.usa_selections['update']:
+                        self.selection_list.append(i)
+                    
             if self.filter_eur.get():
-                for i in self.eur_selections:
-                    self.selection_list.append(i)
+                if self.filter_game.get():
+                    for i in self.eur_selections['game']:
+                        self.selection_list.append(i)
+                if self.filter_dlc.get():
+                    for i in self.eur_selections['dlc']:
+                        self.selection_list.append(i)
+                if self.filter_update.get():
+                    for i in self.eur_selections['update']:
+                        self.selection_list.append(i)
+                        
             if self.filter_jpn.get():
-                for i in self.jpn_selections:
-                    self.selection_list.append(i)
+                if self.filter_game.get():
+                    for i in self.jpn_selections['game']:
+                        self.selection_list.append(i)
+                if self.filter_dlc.get():
+                    for i in self.jpn_selections['dlc']:
+                        self.selection_list.append(i)
+                if self.filter_update.get():
+                    for i in self.jpn_selections['update']:
+                        self.selection_list.append(i)
+                        
             self.selection_list.sort()
             self.selection_box.set('')
             self.selection_box.configure(values=(self.selection_list))
@@ -357,18 +394,27 @@ class RootWindow(tk.Tk):
             print('Something happened while trying to populate the selection box...')
             print('ERROR:' ,e)
 
+    def clear_id_key_boxes(self,*args):
+        self.id_box.delete('0',tk.END)
+        self.key_box.delete('0',tk.END)
+        
     def selection_box_changed(self,*args):
+        self.clear_id_key_boxes()
         user_selected_raw=self.selection_box.get()
-        user_selected=user_selected_raw.split('--')[0].strip()
-        sel_region=user_selected_raw.split('--')[1].strip()
+        x=user_selected_raw.split('--')
+        sel_name=x[0].strip()
+        
+        sel_region=x[1].split('-')[0].strip()
+        sel_type=x[1].split('-')[1].strip()
+        
         for i in self.title_data:
-            if i[0] == user_selected and i[1] == sel_region:
+            if i[0] == sel_name and i[1] == sel_region and i[4] == sel_type:
                 titleid=i[2]
                 key=i[3]
-                self.id_box.delete('0',tk.END)
-                self.key_box.delete('0',tk.END)
+                
                 self.id_box.insert('end',titleid)
                 if key != 'None': self.key_box.insert('end',key)
+                break
     
     def load_title_data(self):       
         self.title_data=[]
@@ -380,23 +426,50 @@ class RootWindow(tk.Tk):
             for i in title_data:
                 try:
                     if i['name']:
-                        name=str(i['name']).lower().capitalize()
+                        name=str(i['name']).lower().capitalize().strip()
                         titleid=str(i['titleID'])
                         titlekey=str(i['titleKey'])
                         region=str(i['region'])
-                        entry=(name,region,titleid,titlekey)
-                        entry2=(name+'  --'+region)
+                        if titleid[4:8] == '0000':
+                            content_type='GAME'
+                        elif titleid[4:8] == '000c':
+                            content_type='DLC'
+                        elif titleid[4:8] == '000e':
+                            content_type='UPDATE'
+                        entry=(name,region,titleid,titlekey,content_type)
+                        entry2=(name+'  --'+region+'  -'+content_type)
                         if not entry in self.title_data:
                             self.title_data.append(entry)
                             if region == 'USA':
-                                if not entry2 in self.usa_selections:
-                                    self.usa_selections.append(entry2)
+                                if content_type == 'GAME':
+                                    if not entry2 in self.usa_selections['game']:
+                                        self.usa_selections['game'].append(entry2)
+                                elif content_type == 'DLC':
+                                    if not entry2 in self.usa_selections['dlc']:
+                                        self.usa_selections['dlc'].append(entry2)
+                                elif content_type == 'UPDATE':
+                                    if not entry2 in self.usa_selections['update']:
+                                        self.usa_selections['update'].append(entry2)
                             elif region == 'EUR':
-                                if not entry2 in self.eur_selections:
-                                        self.eur_selections.append(entry2)
+                                if content_type == 'GAME':
+                                    if not entry2 in self.eur_selections['game']:
+                                        self.eur_selections['game'].append(entry2)
+                                elif content_type == 'DLC':
+                                    if not entry2 in self.eur_selections['dlc']:
+                                        self.eur_selections['dlc'].append(entry2)
+                                elif content_type == 'UPDATE':
+                                    if not entry2 in self.eur_selections['update']:
+                                        self.eur_selections['update'].append(entry2)
                             elif region == 'JPN':
-                                if not entry2 in self.jpn_selections:
-                                    self.jpn_selections.append(entry2)
+                                if content_type == 'GAME':
+                                    if not entry2 in self.jpn_selections['game']:
+                                        self.jpn_selections['game'].append(entry2)
+                                elif content_type == 'DLC':
+                                    if not entry2 in self.jpn_selections['dlc']:
+                                        self.jpn_selections['dlc'].append(entry2)
+                                elif content_type == 'UPDATE':
+                                    if not entry2 in self.jpn_selections['update']:
+                                        self.jpn_selections['update'].append(entry2)
                                     
                 #Some entries in titlekeys.json are invalid,or just not encoding right, or I'm doing something wrong.
                 #Passing errors silently for now.
@@ -427,19 +500,31 @@ class RootWindow(tk.Tk):
     def add_to_list(self):
         titleid = self.id_box.get().strip()
         name = self.selection_box.get().strip()
+        if name == '':
+            name = titleid
+        for i in self.title_data:
+            if titleid == i[2]:
+                name = i[0]
+                region = i[1]
+                content_type = i[4]
+                name = name+'  --'+region+'  '+content_type
+                break
         if self.sanity_check_input(titleid,'title'):
             pass
         else:
             print('Bad Title ID. Must be a 16 digit hexadecimal.')
             return
         key=self.key_box.get().strip()
-        if key == '': key=None
+        if key == '':
+            key=None
+            
         else:
             if self.sanity_check_input(key,'key') or not key:
                 pass
             else:
                 print('Bad Key. Must be a 16 digit hexadecimal.')
                 return
+        if key: name=name+' **'
         entry=(name,titleid,key)
         if not entry in self.download_list: self.download_list.append(entry)
         self.populate_dl_listbox()
@@ -483,7 +568,7 @@ class RootWindow(tk.Tk):
         self.out_dir_box.insert('end',out_dir)
 
     def load_program_revisions(self):
-        print('Checking for program updates, this might take a second or two.......\n')
+        print('Checking for program updates, this might take a few seconds.......\n')
         url1=self.versions['fnku_url']
         url2=self.versions['gui_url']    
         response = urlopen(url1)
@@ -540,18 +625,21 @@ class RootWindow(tk.Tk):
         for i in self.download_list:
             if not i[1] in title_list:
                 title_list.append(i[1])
-            if i[2]:
-                if not i[2] in key_list:
-                    key_list.append(i[2])
+                if i[2]:
+                    if not i[2] in key_list:
+                        key_list.append(i[2])
         if dl_method == 1:
-            fnku.main(titles=title_list,keys=key_list,onlinetickets=True,output_dir=output_dir,retry_count=retry_count,
-                     patch_demo=patch_demo,patch_dlc=patch_dlc,tickets_only=tickets_only,simulate=simulate)
+            fnku.main(titles=title_list,onlinetickets=True,output_dir=output_dir,retry_count=retry_count,
+                      patch_demo=patch_demo,patch_dlc=patch_dlc,tickets_only=tickets_only,simulate=simulate)
         elif dl_method == 2:
-            fnku.main(titles=title_list,keys=key_list,onlinekeys=True,output_dir=output_dir,retry_count=retry_count,
-                     patch_demo=patch_demo,patch_dlc=patch_dlc,tickets_only=tickets_only,simulate=simulate)
+            fnku.main(titles=title_list,onlinekeys=True,output_dir=output_dir,retry_count=retry_count,
+                      patch_demo=patch_demo,patch_dlc=patch_dlc,tickets_only=tickets_only,simulate=simulate)
         elif dl_method == 3:
-            fnku.main(titles=title_list,keys=key_list,output_dir=output_dir,retry_count=retry_count,
-                     patch_demo=patch_demo,patch_dlc=patch_dlc,tickets_only=tickets_only,simulate=simulate)
+            if len(title_list) == len(key_list):
+                fnku.main(titles=title_list,keys=key_list,output_dir=output_dir,retry_count=retry_count,
+                          patch_demo=patch_demo,patch_dlc=patch_dlc,tickets_only=tickets_only,simulate=simulate)
+            else:
+                print('Number of Keys provided does not match the number of Titles provided')
         elif dl_method == 4:
             regions=[]
             if self.region_usa.get():
@@ -561,7 +649,7 @@ class RootWindow(tk.Tk):
             if self.region_jpn.get():
                 regions.append('JPN')
             if len(regions)>0:
-                fnku.main(titles=[],download_regions=regions,output_dir=output_dir,retry_count=retry_count,
+                fnku.main(download_regions=regions,output_dir=output_dir,retry_count=retry_count,
                           patch_demo=patch_demo,patch_dlc=patch_dlc,tickets_only=tickets_only,simulate=simulate)
             else:
                 print('No regions selected. Try again.')

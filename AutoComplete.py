@@ -112,16 +112,21 @@ class AutocompleteCombobox(ttk.Combobox):
                         self._hit_index = (self._hit_index + delta) % len(self._hits)
                 # now finally perform the auto completion
                 if self._hits:
+                        txt=self._hits[self._hit_index]
                         self.delete(0,tkinter.END)
-                        self.insert(0,self._hits[self._hit_index])
+                        self.insert(0,txt)
                         self.select_range(self.position,tkinter.END)
                         self.event_generate('<<ComboboxSelected>>')
+                else:
+                        self.event_generate('<<NoHits>>')
                         
         def handle_keyrelease(self, event):
+            
                 """event handler for the keyrelease event on this widget"""
                 if event.keysym == "BackSpace":
                         self.delete(self.index(tkinter.INSERT), tkinter.END)
                         self.position = self.index(tkinter.END)
+                        
                 if event.keysym == "Left":
                         if self.position < self.index(tkinter.END): # delete the selection
                                 self.delete(self.position, tkinter.END)
@@ -130,8 +135,13 @@ class AutocompleteCombobox(ttk.Combobox):
                                 self.delete(self.position, tkinter.END)
                 if event.keysym == "Right":
                         self.position = self.index(tkinter.END) # go to end (no selection)
+
                 if len(event.keysym) == 1:
                         self.autocomplete()
+                else:
+                        if event.keysym != "Right" and event.keysym != "Return":
+                            self.event_generate('<<NoHits>>')
+                    
                 # No need for up/down, we'll jump to the popup
                 # list at the position of the autocompletion
 
