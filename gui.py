@@ -16,16 +16,16 @@ import FunKiiU as fnku
 import json
 import zipfile
 from AutoComplete import AutocompleteCombobox
-
+from distutils.version import LooseVersion
 
 urlopen=fnku.urlopen
 URLError=fnku.URLError
 HTTPError=fnku.HTTPError
 PhotoImage=tk.PhotoImage
 
-__VERSION__="2.0.7"
+__VERSION__="2.1"
 targetversion="FunKiiU v2.2"
-
+current_gui=LooseVersion(__VERSION__)
 ### I'm getting about 80 titles not parsing from titlekeys.json
 ### properly. To see the error output, set DEBUG = True. The
 ### parsing code is found in load_title_data beginning on line 337.
@@ -38,8 +38,12 @@ else:
     dir_slash = "/"
 try:
     fnku_VERSION_ = str(fnku.__VERSION__)
+    current_fnku=LooseVersion(fnku_VERSION_)
 except:
     fnku.__VERSION__ = "?"
+    current_fnku=LooseVersion('0')
+
+
 
 
 class VersionParser(HTMLParser):
@@ -97,7 +101,6 @@ class RootWindow(tk.Tk):
         self.jpn_selections={'game':[],'dlc':[],'update':[]}
         self.errors=0
         
-        self.load_program_revisions()
 
         # Tab 1
         t1_frm1=ttk.Frame(tab1)   
@@ -111,11 +114,16 @@ class RootWindow(tk.Tk):
         logo=ttk.Label(t1_frm1,image=self.img).pack()
         lbl=ttk.Label(t1_frm2,justify='center',text='This is a simple GUI by dojafoja that was written for FunKiiU.\nCredits to cearp for writing FunKiiU and cerea1killer for rewriting\n it in way that made writing a GUI much easier.').pack()
         lbl=ttk.Label(t1_frm3,justify='center',text='If you plan on using an online methond to obtain keys or tickets\n then FunKiiU will need to know the name of *that key site*. If you\nhaven\'t already provided the address to the key site, you MUST do so\nbelow before proceeding. You only need to provide this information once!').pack(pady=15)
-        lbl=ttk.Label(t1_frm4,text='Enter the name of *that key site*. Something like wiiu.thatkeysite.com').pack(pady=15,side='left')
-        lbl=ttk.Label(t1_frm5,text='http://').pack(pady=15,side='left')
+        self.enterkeysite_lbl=ttk.Label(t1_frm4,text='Enter the name of *that key site*. Something like wiiu.thatkeysite.com')
+        self.enterkeysite_lbl.pack(pady=15,side='left')
+        self.http_lbl=ttk.Label(t1_frm5,text='http://')
+        self.http_lbl.pack(pady=15,side='left')
         self.keysite_box=ttk.Entry(t1_frm5,width=40)
         self.keysite_box.pack(pady=15,side='left')
-        btn=ttk.Button(t1_frm6,text='submit',command=self.submit_key_site).pack()
+        self.submitkeysite_btn=ttk.Button(t1_frm6,text='submit',command=self.submit_key_site)
+        self.submitkeysite_btn.pack()
+        self.updatelabel=ttk.Label(t1_frm6,text='')
+        self.updatelabel.pack(pady=15)
         
         t1_frm1.pack()
         t1_frm2.pack()
@@ -123,6 +131,9 @@ class RootWindow(tk.Tk):
         t1_frm4.pack()
         t1_frm5.pack()
         t1_frm6.pack()
+
+        self.load_program_revisions()
+        self.check_config_keysite()
         
         # Tab2
         t2_frm0=ttk.Frame(self.tab2)
@@ -294,10 +305,33 @@ class RootWindow(tk.Tk):
         t4_frm10.grid(row=10,column=1,padx=25,sticky='w')
         t4_frm11.grid(row=11,column=1,padx=25,sticky='w')
 
-
-
-
-
+    def update_keysite_widgets(self):
+        txt='Correct keysite is already loaded'
+        self.enterkeysite_lbl.configure(text=txt,background='black',foreground='green',font="Helvetica 13 bold")
+        self.http_lbl.pack_forget()
+        self.keysite_box.pack_forget()
+        self.submitkeysite_btn.pack_forget()
+        
+    def check_config_keysite(self):
+        try:
+            with open('config.json') as cfg:
+                config=json.load(cfg)                
+                site=config['keysite']
+                if fnku.hashlib.md5(site.encode('utf-8')).hexdigest() == fnku.KEYSITE_MD5:
+                    self.update_keysite_widgets()
+                    
+        except IOError:
+            pass
+        
+    def notify_of_update(self,update=True):
+        #print('UPDATES ARE AVAILABLE')
+        txt='Updates are available in the updates tab'
+        fg='red'
+        if not update:
+            txt='No updates are currently available'
+            fg='green'
+        self.updatelabel.configure(text=txt,background='black',foreground=fg,font="Helvetica 13 bold")
+        
     def update_application(self,app,zip_file):
         if app == 'fnku':
             self.download_zip(self.versions['fnku_url'].split('releases')[0]+'archive'+'/v'+zip_file+'.zip')
@@ -558,6 +592,7 @@ class RootWindow(tk.Tk):
             config['keysite'] = site
             fnku.save_config(config)
             print('done saving, you are good to go!')
+            self.update_keysite_widgets()
             self.nb.select(self.tab2)
         else:
             print('Wrong key site provided. Try again')
@@ -597,19 +632,26 @@ class RootWindow(tk.Tk):
         gui_newest=''
         
         for i in fnku_data_set:
-            ver=i.split('/')[4]
-            fnku_all.append(ver[1:-4])
+            ver=LooseVersion(i.split('/')[4][1:-4])
+            fnku_all.append(str(ver))
         fnku_newest=max(fnku_all)
         
         for i in gui_data_set:
-            ver=i.split('/')[4]
-            gui_all.append(ver[1:-4])
+            ver=LooseVersion(i.split('/')[4][1:-4])
+            if ver > LooseVersion('2.0.5'):
+                gui_all.append(ver)
+                
         gui_newest=max(gui_all)
+        if gui_newest > current_gui or fnku_newest > current_fnku:
+            self.notify_of_update()
+        else:
+            self.notify_of_update(update=False)
+            
 
         self.versions['fnku_all']=fnku_all
         self.versions['fnku_new']=fnku_newest
-        self.versions['gui_all']=gui_all
-        self.versions['gui_new']=gui_newest
+        self.versions['gui_all']=[str(i) for i in gui_all]
+        self.versions['gui_new']=str(gui_newest)
         
     def download_clicked(self,dl_method):
         title_list=[]
