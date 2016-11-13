@@ -17,13 +17,14 @@ import json
 import zipfile
 from AutoComplete import AutocompleteCombobox
 from distutils.version import LooseVersion
+import binascii
 
 urlopen=fnku.urlopen
 URLError=fnku.URLError
 HTTPError=fnku.HTTPError
 PhotoImage=tk.PhotoImage
 
-__VERSION__="2.1"
+__VERSION__="2.1.1"
 targetversion="FunKiiU v2.2"
 current_gui=LooseVersion(__VERSION__)
 ### I'm getting about 80 titles not parsing from titlekeys.json
@@ -96,6 +97,8 @@ class RootWindow(tk.Tk):
         self.filter_game=tk.BooleanVar(value=True)
         self.filter_dlc=tk.BooleanVar(value=True)
         self.filter_update=tk.BooleanVar(value=True)
+        self.idvar=tk.StringVar()
+        self.idvar.trace('w',self.id_changed)
         self.usa_selections={'game':[],'dlc':[],'update':[]}
         self.eur_selections={'game':[],'dlc':[],'update':[]}
         self.jpn_selections={'game':[],'dlc':[],'update':[]}
@@ -165,9 +168,12 @@ class RootWindow(tk.Tk):
         self.selection_box.pack(padx=5,pady=7,side='left')
         btn=ttk.Button(t2_frm3,text='refresh',width=8,command=self.populate_selection_box).pack(side='left')
         lbl=ttk.Label(t2_frm4,text='Title ID:').pack(padx=5,pady=7,side='left')
-        self.id_box=ttk.Entry(t2_frm4,width=40)
+        self.id_box=ttk.Entry(t2_frm4,width=40,textvariable=self.idvar)
         self.id_box.pack(padx=5,pady=5,side='left')
         btn=ttk.Button(t2_frm4,text='Add to list',command=self.add_to_list).pack(padx=5,pady=5,side='left')
+        btn=ttk.Button(t2_frm4,text='Calculate size',command=lambda:self.calculate_dl_size(self.id_box.get())).pack(padx=5,pady=5,side='left')
+        self.dl_size_lbl=ttk.Label(t2_frm4,text='Size:')
+        self.dl_size_lbl.pack(side='left')
         lbl=ttk.Label(t2_frm5,text='Key:').pack(padx=5,pady=7,side='left')
         self.key_box=ttk.Entry(t2_frm5,width=40)
         self.key_box.pack(padx=5,pady=5,side='left')
@@ -191,8 +197,8 @@ class RootWindow(tk.Tk):
         t2_frm0.grid(row=0,column=1,columnspan=3,sticky='w')
         t2_frm1.grid(row=1,column=1,sticky='w')
         t2_frm2.grid(row=2,column=1,sticky='w')
-        t2_frm3.grid(row=3,column=1,columnspan=3,sticky='w')
-        t2_frm4.grid(row=4,column=1,sticky='w')
+        t2_frm3.grid(row=3,column=1,columnspan=2,sticky='w')
+        t2_frm4.grid(row=4,column=1,columnspan=2,sticky='w')
         t2_frm5.grid(row=5,column=1,sticky='w')
         t2_frm6.grid(row=6,column=2,rowspan=3,columnspan=2,padx=5,sticky='e')
         t2_frm7.grid(row=9,column=3,sticky='e')
@@ -291,7 +297,7 @@ class RootWindow(tk.Tk):
         self.fnku_switchv_box=ttk.Combobox(t4_frm11,width=7,values=[x for x in self.versions['fnku_all']],state='readonly')
         self.fnku_switchv_box.pack(padx=5,pady=1,side='left')
         btn=ttk.Button(t4_frm11,text='Switch',command=lambda:self.update_application('fnku',self.fnku_switchv_box.get())).pack(padx=5,pady=1,side='left')
-
+        
         t4_frm0.grid(row=0,column=1,padx=5,pady=5,sticky='w')
         t4_frm1.grid(row=1,column=1,padx=5,sticky='w')
         t4_frm2.grid(row=2,column=1,padx=25,sticky='w')
@@ -304,6 +310,30 @@ class RootWindow(tk.Tk):
         t4_frm9.grid(row=9,column=1,padx=25,sticky='w')
         t4_frm10.grid(row=10,column=1,padx=25,sticky='w')
         t4_frm11.grid(row=11,column=1,padx=25,sticky='w')
+
+    def id_changed(self,*args):
+        self.key_box.delete('0',tk.END)
+        if self.dl_size_lbl.cget('text') != 'Size:':
+            self.dl_size_lbl.configure(text='Size:')
+
+    def calculate_dl_size(self,title_id):
+        TK = fnku.TK
+        baseurl = 'http://ccs.cdn.c.shop.nintendowifi.net/ccs/download/{}'.format(title_id)
+
+        if not fnku.download_file(baseurl + '/tmd', 'title.tmd', 3):
+            print('ERROR: Could not download TMD...')
+        else:
+            with open('title.tmd', 'rb') as f:
+                tmd = f.read()
+            content_count = int(binascii.hexlify(tmd[TK + 0x9E:TK + 0xA0]), 16)
+    
+            total_size = 0
+            for i in range(content_count):
+                c_offs = 0xB04 + (0x30 * i)
+                total_size += int(binascii.hexlify(tmd[c_offs + 0x08:c_offs + 0x10]), 16)
+            self.dl_size_lbl.configure(text='Size: '+fnku.bytes2human(total_size))
+            print('Total size is {}\n'.format(fnku.bytes2human(total_size)))
+            os.remove('title.tmd')
 
     def update_keysite_widgets(self):
         txt='Correct keysite is already loaded'
@@ -340,7 +370,8 @@ class RootWindow(tk.Tk):
             
         if self.unpack_zip('update.zip'):
             print('Update completed succesfully! Restart application\nfor changes to take effect.')
-
+            os.remove('update.zip')
+            
     def unpack_zip(self,zip_name):
         try:
             print('unzipping update')
@@ -454,7 +485,7 @@ class RootWindow(tk.Tk):
         self.title_data=[]
         try:
             with open('titlekeys.json') as td:
-                title_data=json.load(td)                
+                title_data=json.load(td)
             self.errors=0
             print('Now parsing titlekeys.json')
             for i in title_data:
