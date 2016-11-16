@@ -467,7 +467,7 @@ class RootWindow(tk.Tk):
         self.clear_id_key_boxes()
         user_selected_raw=self.selection_box.get()
         x=user_selected_raw.split('--')
-        sel_name=x[0].strip()
+        sel_name=x[0].encode("utf-8").strip()
         
         sel_region=x[1].split('-')[0].strip()
         sel_type=x[1].split('-')[1].strip()
@@ -491,7 +491,7 @@ class RootWindow(tk.Tk):
             for i in title_data:
                 try:
                     if i['name']:
-                        name=str(i['name']).lower().capitalize().strip()
+                        name=i['name'].encode("utf-8").lower().capitalize().strip()
                         titleid=str(i['titleID'])
                         titlekey=str(i['titleKey'])
                         region=str(i['region'])

@@ -101,7 +101,7 @@ class AutocompleteCombobox(ttk.Combobox):
                 # collect hits
                 _hits = []
                 for element in self._completion_list:
-                        if element.lower().startswith(self.get().lower()): # Match case insensitively
+                        if element.lower().startswith(self.get().encode("utf-8").lower()): # Match case insensitively
                                 _hits.append(element)
                 # if we have a new hit list, keep this in mind
                 if _hits != self._hits:
