@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-# encoding: utf-8
+# -*- coding: utf-8 -*-
+
 """
 tkentrycomplete.py
 
@@ -19,6 +20,7 @@ except ImportError:
     import ttk
 __version__ = "1.1"
 
+
 # I may have broken the unicode...
 tkinter_umlauts=['odiaeresis', 'adiaeresis', 'udiaeresis', 'Odiaeresis', 'Adiaeresis', 'Udiaeresis', 'ssharp']
 
@@ -31,7 +33,7 @@ class AutocompleteEntry(tkinter.Entry):
         To cycle through hits use down and up arrow keys.
         """
         def set_completion_list(self, completion_list):
-                self._completion_list = sorted(completion_list, key=str.lower) # Work with a sorted list
+                #self._completion_list = sorted(completion_list, key=str.lower) # Work with a sorted list
                 self._hits = []
                 self._hit_index = 0
                 self.position = 0
@@ -85,7 +87,8 @@ class AutocompleteCombobox(ttk.Combobox):
 
         def set_completion_list(self, completion_list):
                 """Use our completion list as our drop down selection menu, arrows move through menu."""
-                self._completion_list = sorted(completion_list, key=str.lower) # Work with a sorted list
+                #self._completion_list = sorted(completion_list, key=str.lower) # Work with a sorted list
+                self._completion_list=completion_list
                 self._hits = []
                 self._hit_index = 0
                 self.position = 0
@@ -101,7 +104,11 @@ class AutocompleteCombobox(ttk.Combobox):
                 # collect hits
                 _hits = []
                 for element in self._completion_list:
-                        if element.lower().startswith(self.get().encode("utf-8").lower()): # Match case insensitively
+                        if py_ver == 3:
+                            box_value = self.get()
+                        elif py_ver == 2:
+                            box_value = self.get()
+                        if element.lower().startswith(box_value.lower()): # Match case insensitively
                                 _hits.append(element)
                 # if we have a new hit list, keep this in mind
                 if _hits != self._hits:
