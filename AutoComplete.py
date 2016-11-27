@@ -104,10 +104,8 @@ class AutocompleteCombobox(ttk.Combobox):
                 # collect hits
                 _hits = []
                 for element in self._completion_list:
-                        if py_ver == 3:
-                            box_value = self.get()
-                        elif py_ver == 2:
-                            box_value = self.get()
+                    
+                        box_value = self.get()
                         if element.lower().startswith(box_value.lower()): # Match case insensitively
                                 _hits.append(element)
                 # if we have a new hit list, keep this in mind
