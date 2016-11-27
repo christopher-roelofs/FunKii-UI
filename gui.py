@@ -29,7 +29,7 @@ HTTPError=fnku.HTTPError
 PhotoImage=tk.PhotoImage
 py_ver=sys.version_info[0]
 
-__VERSION__="2.1.2"
+__VERSION__="2.1.3"
 targetversion="FunKiiU v2.2"
 current_gui=LooseVersion(__VERSION__)
 
