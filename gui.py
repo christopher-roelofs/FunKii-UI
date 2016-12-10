@@ -421,10 +421,7 @@ class RootWindow(tk.Tk):
         ## This will take a short while to fetch all the download size information.
         
 
-        #if len(self.title_sizes) != len(self.title_data):
-            #print('\n\nSize informataion database is out of sync with titlekeys.json.')
-            ##self.set_icon()
-            #self.build_database()
+        #self.build_database()
     
     def build_database(self,sizeonly=True):
         if len(self.title_sizes) >= len(self.title_data):
@@ -516,7 +513,9 @@ class RootWindow(tk.Tk):
                     self.title_sizes_raw[str(i[0])] = str(i[2])
             db.close()
         else:
-            print('No data.db file found. No size information will be available')
+            print('No data.db file found.')
+            self.title_sizes={}
+            self.title_sizes_raw={}
 
     def id_changed(self,*args):
         self.key_box.delete('0',tk.END)
@@ -530,7 +529,7 @@ class RootWindow(tk.Tk):
                     self.has_ticket_lbl.configure(text='NO',foreground='red')                
                 if self.title_dict[t_id].get('key',None):
                     self.key_box.insert('end',self.title_dict[t_id]['key'])
-                if self.title_sizes[t_id] != '0':
+                if self.title_sizes.get(t_id,None):
                     self.dl_size_lbl.configure(text='Size: '+self.title_sizes[t_id]+',')
                 else:
                     self.dl_size_lbl.configure(text='Size: ?,')
@@ -1072,9 +1071,9 @@ class RootWindow(tk.Tk):
             fnku.save_config(config)
             print('done saving, you are good to go!')
             self.update_keysite_widgets()
-            self.load_title_sizes()
-            self.build_database()
             self.populate_selection_box()
+            self.build_database()
+            self.load_title_sizes()
             self.nb.select(self.tab2)
         else:
             print('Wrong key site provided. Try again')
