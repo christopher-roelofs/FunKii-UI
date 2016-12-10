@@ -5,16 +5,21 @@ try: #Python 2 imports
     import Tkinter as tk
     import ttk
     import tkFileDialog as filedialog
+    import tkMessageBox as message
     from HTMLParser import HTMLParser
+    from Tkinter import Image
+    from urllib2 import urlopen, URLError, HTTPError
     
 except ImportError: #Python 3 imports
     import tkinter as tk
     from tkinter import ttk
     from tkinter import filedialog
+    from tkinter import messagebox as message
     from html.parser import HTMLParser
+    from urllib.request import urlopen
+    from urllib.error import URLError, HTTPError
     
-import os    
-import FunKiiU as fnku
+import os
 import json
 import zipfile
 from AutoComplete import AutocompleteCombobox
@@ -23,17 +28,19 @@ import binascii
 import sys
 import sqlite3
 
-urlopen=fnku.urlopen
-URLError=fnku.URLError
-HTTPError=fnku.HTTPError
+try:
+    import FunKiiU as fnku
+except ImportError:
+    fnku = None
+    
 PhotoImage=tk.PhotoImage
-py_ver=sys.version_info[0]
+DEBUG = False
 
-__VERSION__="2.1.3"
+__VERSION__="2.1.5"
 targetversion="FunKiiU v2.2"
 current_gui=LooseVersion(__VERSION__)
 
-DEBUG = True
+
 
 if os.name == 'nt':
     dir_slash = "\\"
@@ -43,7 +50,7 @@ try:
     fnku_VERSION_ = str(fnku.__VERSION__)
     current_fnku=LooseVersion(fnku_VERSION_)
 except:
-    fnku.__VERSION__ = "?"
+    fnku__VERSION__ = "?"
     current_fnku=LooseVersion('0')
 
 
@@ -70,7 +77,7 @@ class RootWindow(tk.Tk):
         tk.Tk.__init__(self)
         self.versions={'gui_new':'','gui_all':'','gui_url':'https://github.com/dojafoja/FunKii-UI/releases','fnku_new':'','fnku_all':'',
                        'fnku_url':'https://github.com/llakssz/FunKiiU/releases'}
-
+        
         self.download_list=[]
         self.selection_list=[]
         self.title_data=[]
@@ -90,32 +97,40 @@ class RootWindow(tk.Tk):
         self.patch_dlc=tk.BooleanVar(value=True)
         self.tickets_only=tk.BooleanVar(value=False)
         self.simulate_mode=tk.BooleanVar(value=False)
-        self.region_usa=tk.BooleanVar(value=False)
-        self.region_eur=tk.BooleanVar(value=False)
-        self.region_jpn=tk.BooleanVar(value=False)
         self.filter_usa=tk.BooleanVar(value=True)
         self.filter_eur=tk.BooleanVar(value=True)
         self.filter_jpn=tk.BooleanVar(value=True)
         self.filter_game=tk.BooleanVar(value=True)
         self.filter_dlc=tk.BooleanVar(value=True)
         self.filter_update=tk.BooleanVar(value=True)
+        self.filter_demo=tk.BooleanVar(value=True)
         self.filter_hasticket=tk.BooleanVar(value=False)
+        self.show_batch=tk.BooleanVar(value=False)
+        self.dl_behavior=tk.IntVar(value=1)
+        self.fetch_dlc=tk.BooleanVar(value=True)
+        self.fetch_updates=tk.BooleanVar(value=True)
+        self.remove_ignored=tk.BooleanVar(value=True)
+        self.auto_fetching=tk.StringVar(value='prompt')
+        self.fetch_on_batch=tk.BooleanVar(value=False)
+        self.batch_op_running=tk.BooleanVar(value=False)
         self.total_dl_size=tk.StringVar()
         self.total_dl_size_warning=tk.StringVar()
         self.dl_warning_msg = "     ! You have one or more items in the list with an unknown size. This probably means\n        the tmd can not be downloaded and the title will be skipped by FunKiiU."
         self.idvar=tk.StringVar()
+        self.newest_gui_ver=tk.StringVar()
+        self.newest_fnku_ver=tk.StringVar()
         self.idvar.trace('w',self.id_changed)
-        self.usa_selections={'game':[],'dlc':[],'update':[]}
-        self.eur_selections={'game':[],'dlc':[],'update':[]}
-        self.jpn_selections={'game':[],'dlc':[],'update':[]}
+        self.usa_selections={'game':[],'dlc':[],'update':[],'demo':[]}
+        self.eur_selections={'game':[],'dlc':[],'update':[],'demo':[]}
+        self.jpn_selections={'game':[],'dlc':[],'update':[],'demo':[]}
         self.title_sizes_raw={}
         self.title_sizes={}
         self.reverse_title_names={}
         self.title_dict={}
         self.has_ticket=[]
         self.errors=0
+               
         
-
         # Tab 1
         t1_frm1=ttk.Frame(tab1)   
         t1_frm2=ttk.Frame(tab1)
@@ -124,10 +139,10 @@ class RootWindow(tk.Tk):
         t1_frm5=ttk.Frame(tab1)
         t1_frm6=ttk.Frame(tab1)
         
-        self.img = PhotoImage(file='logo.gif')
+        self.img = PhotoImage(file='logo.ppm')
         logo=ttk.Label(t1_frm1,image=self.img).pack()
-        lbl=ttk.Label(t1_frm2,justify='center',text='This is a simple GUI by dojafoja that was written for FunKiiU.\nCredits to cearp for writing FunKiiU and cerea1killer for rewriting\n it in way that made writing a GUI much easier.').pack()
-        lbl=ttk.Label(t1_frm3,justify='center',text='If you plan on using an online methond to obtain keys or tickets\n then FunKiiU will need to know the name of *that key site*. If you\nhaven\'t already provided the address to the key site, you MUST do so\nbelow before proceeding. You only need to provide this information once!').pack(pady=15)
+        lbl=ttk.Label(t1_frm2,justify='center',text='This is a simple GUI by dojafoja that was written for FunKiiU.\nCredits to cearp, cerea1killer, and all the Github contributors for writing FunKiiU.').pack()
+        lbl=ttk.Label(t1_frm3,justify='center',text='If this is your first time running the program, you will need to provide the name of *that key site*. If you haven\'t already\nprovided the address to the key site, you MUST provide it below before proceeding. You only need to provide this information once!').pack(pady=15)
         self.enterkeysite_lbl=ttk.Label(t1_frm4,text='Enter the name of *that key site*. Something like wiiu.thatkeysite.com')
         self.enterkeysite_lbl.pack(pady=15,side='left')
         self.http_lbl=ttk.Label(t1_frm5,text='http://')
@@ -146,8 +161,18 @@ class RootWindow(tk.Tk):
         t1_frm5.pack()
         t1_frm6.pack()
 
-        self.load_program_revisions()
-        self.check_config_keysite()
+
+        ## Check for FunKiiU existence and download targeted version if not.
+        global fnku
+        if not fnku:
+            self.set_icon()
+            message.showinfo('Missing FunKiiU','You are missing FunKiiU. We are going to download it for you now.',parent=self)
+            self.update_application('fnku',targetversion.split('v')[1])
+            import FunKiiU as fnku
+            global current_fnku
+            current_fnku=LooseVersion(str(fnku.__VERSION__))
+            message.showinfo('Done','FunKiiU has been downloded for you. Enjoy!',parent=self)
+            
         
         # Tab2
         t2_frm0=ttk.Frame(self.tab2)
@@ -162,18 +187,22 @@ class RootWindow(tk.Tk):
         t2_frm9=ttk.Frame(self.tab2)
         t2_frm10=ttk.Frame(self.tab2)
         t2_frm11=ttk.Frame(self.tab2)
+        t2_frm12=ttk.Frame(self.tab2)
+        t2_frm13=ttk.Frame(self.tab2)
+        t2_frm14=ttk.Frame(self.tab2)
         
-        lbl=ttk.Label(t2_frm0,text='Enter as many Title ID\'s as you would like to the list. If you are going to use the key method to download then be sure a key is provided for every title\nyou add to the list or it will fail. Use the selection box to make life easier, it has auto-complete. You can always enter a title Id and key manually.').pack(padx=5,pady=7)
-        lbl=ttk.Label(t2_frm1,text='Choose regions to display:').pack(padx=5,pady=5,side='left')
+        lbl=ttk.Label(t2_frm0,text='Enter as many Title ID\'s as you would like to the list. Use the selection box to make life easier, it has auto-complete.\nYou can also enter a title id manually if you wish. You can set the program to automatically fetch a games update\nand dlc when adding it to the list, adjust download behavior, and more in the Options tab.').pack(padx=5,pady=16)
+        lbl=ttk.Label(t2_frm1,text='Choose regions to display:',font='Helvetica 10 bold').pack(padx=15,pady=5,side='left')
         filter_box_usa=ttk.Checkbutton(t2_frm1,text='USA',variable=self.filter_usa,command=lambda:self.populate_selection_box(download_data=False)).pack(padx=5,pady=5,side='left')
         filter_box_eur=ttk.Checkbutton(t2_frm1,text='EUR',variable=self.filter_eur,command=lambda:self.populate_selection_box(download_data=False)).pack(padx=5,pady=5,side='left')
         filter_box_jpn=ttk.Checkbutton(t2_frm1,text='JPN',variable=self.filter_jpn,command=lambda:self.populate_selection_box(download_data=False)).pack(padx=5,pady=5,side='left')
-        lbl=ttk.Label(t2_frm2,text='Choose content to display:').pack(padx=5,pady=5,side='left')
-        filter_box_usa=ttk.Checkbutton(t2_frm2,text='Game',variable=self.filter_game,command=lambda:self.populate_selection_box(download_data=False)).pack(padx=5,pady=5,side='left')
-        filter_box_eur=ttk.Checkbutton(t2_frm2,text='Update',variable=self.filter_update,command=lambda:self.populate_selection_box(download_data=False)).pack(padx=5,pady=5,side='left')
-        filter_box_jpn=ttk.Checkbutton(t2_frm2,text='DLC',variable=self.filter_dlc,command=lambda:self.populate_selection_box(download_data=False)).pack(padx=5,pady=5,side='left')
-        filter_box_ticket=ttk.Checkbutton(t2_frm2,text='Only show items with an online ticket',variable=self.filter_hasticket,command=lambda:self.populate_selection_box(download_data=False)).pack(padx=5,pady=5,side='left')
-        lbl=ttk.Label(t2_frm3,text='Selection:').pack(padx=5,pady=7,side='left')
+        lbl=ttk.Label(t2_frm2,text='Choose content to display:',font='Helvetica 10 bold').pack(padx=15,pady=5,side='left')
+        filter_box=ttk.Checkbutton(t2_frm2,text='Game',variable=self.filter_game,command=lambda:self.populate_selection_box(download_data=False)).pack(padx=5,pady=5,side='left')
+        filter_box=ttk.Checkbutton(t2_frm2,text='Update',variable=self.filter_update,command=lambda:self.populate_selection_box(download_data=False)).pack(padx=5,pady=5,side='left')
+        filter_box=ttk.Checkbutton(t2_frm2,text='DLC',variable=self.filter_dlc,command=lambda:self.populate_selection_box(download_data=False)).pack(padx=5,pady=5,side='left')
+        filter_box=ttk.Checkbutton(t2_frm2,text='Demo',variable=self.filter_demo,command=lambda:self.populate_selection_box(download_data=False)).pack(padx=5,pady=5,side='left')
+        filter_box_ticket=ttk.Checkbutton(t2_frm2,text='Only show items with a legit ticket',variable=self.filter_hasticket,command=lambda:self.populate_selection_box(download_data=False)).pack(padx=5,pady=5,side='left')
+        lbl=ttk.Label(t2_frm3,text='Selection:',font='Helvetica 10 bold').pack(padx=15,pady=7,side='left')
         self.selection_box=AutocompleteCombobox(t2_frm3,values=(self.selection_list),width=73)
         self.selection_box.bind('<<ComboboxSelected>>', self.selection_box_changed)
         self.selection_box.bind('<Return>', self.selection_box_changed)
@@ -183,21 +212,19 @@ class RootWindow(tk.Tk):
         #self.selection_box.bind('<<NoHits>>', self.clear_id_key_boxes)
         
         self.selection_box.pack(padx=5,pady=7,side='left')
-        btn=ttk.Button(t2_frm3,text='refresh',width=8,command=self.populate_selection_box).pack(side='left')
-        lbl=ttk.Label(t2_frm4,text='Title ID:').pack(padx=5,pady=7,side='left')
-        self.id_box=ttk.Entry(t2_frm4,width=40,textvariable=self.idvar)
+        lbl=ttk.Label(t2_frm4,text='Title ID:',font='Helvetica 10 bold').pack(padx=15,pady=7,side='left')
+        self.id_box=ttk.Entry(t2_frm4,width=30,textvariable=self.idvar)
         self.id_box.pack(padx=5,pady=5,side='left')
-        btn=ttk.Button(t2_frm4,text='Add to list',command=self.add_to_list).pack(padx=5,pady=5,side='left')
+        btn=ttk.Button(t2_frm4,text='Add to list',command=lambda:self.add_to_list([self.id_box.get(),])).pack(padx=5,pady=5,side='left')
         self.dl_size_lbl=ttk.Label(t2_frm4,text='Size:,',font='Helvetica 10 bold')
         self.dl_size_lbl.pack(side='left')
         lbl=ttk.Label(t2_frm4,text='Online ticket:',font='Helvetica 10 bold').pack(side='left',padx=5)
         self.has_ticket_lbl=ttk.Label(t2_frm4,text='',font='Helvetica 10 bold')
         self.has_ticket_lbl.pack(side='left')
-        lbl=ttk.Label(t2_frm5,text='Key:').pack(padx=5,pady=7,side='left')
-        self.key_box=ttk.Entry(t2_frm5,width=40)
+        lbl=ttk.Label(t2_frm5,text='Key:',font='Helvetica 10 bold').pack(padx=15,pady=7,side='left')
+        self.key_box=ttk.Entry(t2_frm5,width=34)
         self.key_box.pack(padx=5,pady=5,side='left')
-        lbl=ttk.Label(t2_frm6,text='Download list:').pack()
-        #lbl=ttk.Label(t2_frm6,text='Items marked with * have a key provided. Items marked with ! have an unknown size.').pack()
+        lbl=ttk.Label(t2_frm6,text='Download list:',font='Helvetica 10 bold').pack()
         dl_scroller=ttk.Scrollbar(t2_frm6,orient='vertical')
         dl_scroller.pack(side='right',fill='y')
         self.dl_listbox=tk.Listbox(t2_frm6,width=78,height=12)
@@ -208,29 +235,38 @@ class RootWindow(tk.Tk):
         btn=ttk.Button(t2_frm7,text='Clear list',command=self.clear_list).pack(padx=3,pady=2,side='left')
         lbl=ttk.Label(t2_frm8,text='',textvariable=self.total_dl_size,font='Helvetica 10 bold').pack(side='left')
         lbl=ttk.Label(t2_frm10,text='',textvariable=self.total_dl_size_warning,foreground='red').pack(side='left')
-        lbl=ttk.Label(t2_frm9,justify='center',text='Add an entry to the download list one at a time.\nWhen you are done, click on a download button\nbelow based on your preferred method. Items marked\nwith * have a key provided and items marked with ! have\nan unknown size. Don\'t forget to visit the options tab\nbefore you download.').pack(padx=20,pady=10)
-        btn=ttk.Button(t2_frm11,text='Download using online tickets',width=30,command=lambda:self.download_clicked(1)).pack(padx=5,pady=10,side='left')
-        btn=ttk.Button(t2_frm11,text='Download using keys method',width=30,command=lambda:self.download_clicked(2)).pack(padx=5,pady=10,side='left')
+        lbl1=ttk.Label(t2_frm9,text='Batch options:',font='Helvetica 10 bold').pack(pady=10,padx=15,side='left')
+        show=ttk.Radiobutton(t2_frm9,text='Show',variable=self.show_batch,value=True,command=self.toggle_widgets).pack(pady=10,side='left')
+        hide=ttk.Radiobutton(t2_frm9,text='Hide',variable=self.show_batch,value=False,command=self.toggle_widgets).pack(pady=10,padx=7,side='left')
 
-        self.load_title_sizes()
-        self.populate_selection_box()
-        self.total_dl_size.set('Total Size:')
-        
-        
-        t2_frm0.grid(row=0,column=1,columnspan=3,sticky='w')
-        t2_frm1.grid(row=1,column=1,sticky='w')
-        t2_frm2.grid(row=2,column=1,columnspan=2,sticky='w')
-        t2_frm3.grid(row=3,column=1,columnspan=2,sticky='w')
-        t2_frm4.grid(row=4,column=1,columnspan=3,sticky='w')
-        t2_frm5.grid(row=5,column=1,sticky='w')
-        t2_frm6.grid(row=6,column=2,rowspan=3,columnspan=3,sticky='e')
-        t2_frm7.grid(row=9,column=3,sticky='e')
-        t2_frm8.grid(row=9,column=2,padx=20,sticky='w')
-        t2_frm9.grid(row=6,column=1,sticky='w')
-        t2_frm10.grid(row=10,column=2,padx=5,columnspan=2,sticky='nw')
-        t2_frm11.grid(row=11,column=2,columnspan=3)
-        
-        
+        lbl2=ttk.Label(t2_frm11,text='Add all your filtered selections to the list:').pack(padx=10,side='left')
+        btn1=ttk.Button(t2_frm11,text='Add all',command=self.add_filtered_to_list).pack(side='left')
+        lbl3=ttk.Label(t2_frm12,text='Import batch job:').pack(padx=10,side='left')
+        btn2=ttk.Button(t2_frm12,text='Import',command=self.batch_import).pack(side='left')
+        lbl4=ttk.Label(t2_frm13,text='Export current list:').pack(padx=10,side='left')
+        btn3=ttk.Button(t2_frm13,text='Export',command=self.export_to_batch).pack(side='left')
+        btn=ttk.Button(t2_frm14,text='DOWNLOAD',width=30,command=self.download_clicked).pack(padx=5,pady=10,side='left')
+
+              
+        t2_frm0.grid(row=0,column=1,columnspan=4,sticky='w')
+        t2_frm1.grid(row=1,column=1,columnspan=2,sticky='w')
+        t2_frm2.grid(row=2,column=1,columnspan=4,sticky='w')
+        t2_frm3.grid(row=3,column=1,columnspan=4,sticky='w')
+        t2_frm4.grid(row=4,column=1,columnspan=4,sticky='w')
+        t2_frm5.grid(row=5,column=1,columnspan=2,sticky='w')
+        t2_frm6.grid(row=6,column=3,rowspan=7,columnspan=3,sticky='e')
+        t2_frm7.grid(row=13,column=5,sticky='e')
+        t2_frm8.grid(row=13,column=3,padx=20,sticky='w')
+        t2_frm9.grid(row=8,column=1,columnspan=2,sticky='w')
+        t2_frm10.grid(row=14,column=3,padx=5,columnspan=3,sticky='nw')
+        t2_frm11.grid(row=9,column=1,columnspan=2,sticky='w')
+        t2_frm12.grid(row=10,column=1,columnspan=2,sticky='w')
+        t2_frm13.grid(row=11,column=1,columnspan=2,sticky='w')
+        t2_frm14.grid(row=15,column=3,columnspan=3)
+
+        self.batch_frames=(t2_frm11,t2_frm12,t2_frm13)
+
+              
         # Tab3
         t3_frm1=ttk.Frame(tab3)
         t3_frm2=ttk.Frame(tab3)
@@ -240,42 +276,59 @@ class RootWindow(tk.Tk):
         t3_frm6=ttk.Frame(tab3)
         t3_frm7=ttk.Frame(tab3)
         t3_frm8=ttk.Frame(tab3)
+        t3_frm9=ttk.Frame(tab3)
+        self.t3_frm10=ttk.Frame(tab3)
+        t3_frm11=ttk.Frame(tab3)
+        t3_frm12=ttk.Frame(tab3)
+        t3_frm13=ttk.Frame(tab3)
+        t3_frm14=ttk.Frame(tab3)
+        t3_frm15=ttk.Frame(tab3)
+        self.t3_frm16=ttk.Frame(tab3)
+        t3_frm17=ttk.Frame(tab3)
         
-        lbl=ttk.Label(t3_frm1,text='To use the default output directory, leave the entry blank').pack(padx=5,pady=10,side='left')
-        lbl=ttk.Label(t3_frm2,text='Output directory').pack(padx=5,pady=5,side='left')
-        self.out_dir_box=ttk.Entry(t3_frm2,width=35,textvariable=self.output_dir)
+        lbl=ttk.Label(t3_frm1,text='Output directory:',font='Helvetica 10 bold').pack(padx=15,pady=5,side='left')
+        self.out_dir_box=ttk.Entry(t3_frm1,width=35,textvariable=self.output_dir)
         self.out_dir_box.pack(padx=5,pady=5,side='left')
-        btn=ttk.Button(t3_frm2,text='Browse',command=self.get_output_directory).pack(padx=5,pady=5,side='left')
-        lbl=ttk.Label(t3_frm3,text='Retry count:').pack(padx=5,pady=5,side='left')
-        self.retry_count_box=ttk.Combobox(t3_frm3,state='readonly',width=5,values=range(10),textvariable=self.retry_count)
+        btn=ttk.Button(t3_frm1,text='Browse',command=self.get_output_directory).pack(padx=5,pady=5,side='left')
+        lbl=ttk.Label(t3_frm2,text='Retry count:',font='Helvetica 10 bold').pack(padx=15,pady=5,side='left')
+        self.retry_count_box=ttk.Combobox(t3_frm2,state='readonly',width=5,values=range(10),textvariable=self.retry_count)
         self.retry_count_box.set(3)
         self.retry_count_box.pack(padx=5,pady=5,side='left')
-        lbl=ttk.Label(t3_frm4,text='Patch demo play limit:').pack(padx=5,pady=5,side='left')
-        self.patch_demo_true=ttk.Radiobutton(t3_frm4,text='Yes',variable=self.patch_demo,value=True)
-        self.patch_demo_false=ttk.Radiobutton(t3_frm4,text='No',variable=self.patch_demo,value=False)
+        lbl=ttk.Label(t3_frm3,text='Patch demo play limit:',font='Helvetica 10 bold').pack(padx=15,pady=5,side='left')
+        self.patch_demo_true=ttk.Radiobutton(t3_frm3,text='Yes',variable=self.patch_demo,value=True)
+        self.patch_demo_false=ttk.Radiobutton(t3_frm3,text='No',variable=self.patch_demo,value=False)
         self.patch_demo_true.pack(padx=5,pady=5,side='left')
         self.patch_demo_false.pack(padx=5,pady=5,side='left')
-        lbl=ttk.Label(t3_frm5,text='Patch DLC:').pack(padx=5,pady=5,side='left')
-        self.patch_dlc_true=ttk.Radiobutton(t3_frm5,text='Yes',variable=self.patch_dlc,value=True)
-        self.patch_dlc_false=ttk.Radiobutton(t3_frm5,text='No',variable=self.patch_dlc,value=False)
+        lbl=ttk.Label(t3_frm4,text='Patch DLC:',font='Helvetica 10 bold').pack(padx=15,pady=5,side='left')
+        self.patch_dlc_true=ttk.Radiobutton(t3_frm4,text='Yes',variable=self.patch_dlc,value=True)
+        self.patch_dlc_false=ttk.Radiobutton(t3_frm4,text='No',variable=self.patch_dlc,value=False)
         self.patch_dlc_true.pack(padx=5,pady=5,side='left')
         self.patch_dlc_false.pack(padx=5,pady=5,side='left')
-        lbl=ttk.Label(t3_frm6,text='Tickets only mode:').pack(padx=5,pady=5,side='left')
-        self.tickets_only_true=ttk.Radiobutton(t3_frm6,text='On',variable=self.tickets_only,value=True)
-        self.tickets_only_false=ttk.Radiobutton(t3_frm6,text='Off',variable=self.tickets_only,value=False)
+        lbl=ttk.Label(t3_frm5,text='Tickets only mode:',font='Helvetica 10 bold').pack(padx=15,pady=5,side='left')
+        self.tickets_only_true=ttk.Radiobutton(t3_frm5,text='On',variable=self.tickets_only,value=True)
+        self.tickets_only_false=ttk.Radiobutton(t3_frm5,text='Off',variable=self.tickets_only,value=False)
         self.tickets_only_true.pack(padx=5,pady=5,side='left')
         self.tickets_only_false.pack(padx=5,pady=5,side='left')
-        lbl=ttk.Label(t3_frm7,text='Simulation mode:').pack(padx=5,pady=5,side='left')
-        self.simulate_mode_true=ttk.Radiobutton(t3_frm7,text='On',variable=self.simulate_mode,value=True)
-        self.simulate_mode_false=ttk.Radiobutton(t3_frm7,text='Off',variable=self.simulate_mode,value=False)
+        lbl=ttk.Label(t3_frm6,text='Simulation mode:',font='Helvetica 10 bold').pack(padx=15,pady=5,side='left')
+        self.simulate_mode_true=ttk.Radiobutton(t3_frm6,text='On',variable=self.simulate_mode,value=True)
+        self.simulate_mode_false=ttk.Radiobutton(t3_frm6,text='Off',variable=self.simulate_mode,value=False)
         self.simulate_mode_true.pack(padx=5,pady=5,side='left')
         self.simulate_mode_false.pack(padx=5,pady=5,side='left')
-        lbl=ttk.Label(t3_frm8,text='Download ALL titles on NUS except system\ntitles. Choose the regions you would like:').pack(padx=5,pady=5,side='left')
-        self.region_box_usa=ttk.Checkbutton(t3_frm8,text='USA',variable=self.region_usa).pack(padx=5,pady=5,side='left')
-        self.region_box_eur=ttk.Checkbutton(t3_frm8,text='EUR',variable=self.region_eur).pack(padx=5,pady=5,side='left')
-        self.region_box_jpn=ttk.Checkbutton(t3_frm8,text='JPN',variable=self.region_jpn).pack(padx=5,pady=5,side='left')
-        btn=ttk.Button(t3_frm8,text='Go',width=4,command=lambda:self.download_clicked(3)).pack(pady=20,side='left')
-                
+        lbl=ttk.Label(t3_frm7,text='Choose your preferred download behavior:',font='Helvetica 10 bold').pack(padx=15,pady=5,side='left')
+        bhvr_type=ttk.Radiobutton(t3_frm8,text='Download legit tickets for titles when available and generate fake tickets for titles that do not have legit tickets',variable=self.dl_behavior,value=1,command=self.toggle_widgets).pack(padx=5,pady=5,side='left')
+        bhvr_type=ttk.Radiobutton(t3_frm9,text='Only download titles with legit tickets and ignore all others:',variable=self.dl_behavior,value=2,command=self.toggle_widgets).pack(padx=5,pady=5,side='left')
+        rem_ignored_bhvr=ttk.Checkbutton(self.t3_frm10,text='Remove ignored items from download list when done.',variable=self.remove_ignored).pack(padx=5,pady=5,side='left')
+        lbl=ttk.Label(t3_frm11,text='Auto-fetch game updates and dlc:',font='Helvetica 10 bold').pack(padx=15,pady=5,side='left')
+        lbl=ttk.Label(t3_frm12,text='When adding games to the download list, you can automatically fetch it\'s related update and dlc.').pack(padx=5,side='left')
+        bhvr=ttk.Radiobutton(t3_frm13,text='Disabled',variable=self.auto_fetching,value='disabled',command=self.toggle_widgets).pack(padx=5,pady=5,side='left')
+        bhvr=ttk.Radiobutton(t3_frm14,text='Prompt for content to fetch',variable=self.auto_fetching,value='prompt',command=self.toggle_widgets).pack(padx=5,pady=5,side='left')
+        bhvr=ttk.Radiobutton(t3_frm15,text='Automatically fetch content:',variable=self.auto_fetching,value='auto',command=self.toggle_widgets).pack(padx=5,pady=5,side='left')
+        fetch_up_bhvr=ttk.Checkbutton(self.t3_frm16,text='Fetch game updates',variable=self.fetch_updates).pack(padx=15,pady=5,side='left')
+        fetch_dlc_bhvr=ttk.Checkbutton(self.t3_frm16,text='Fetch game dlc',variable=self.fetch_dlc).pack(padx=5,pady=5,side='left')
+        allow_fetch_bhvr=ttk.Checkbutton(self.t3_frm16,text='Allow auto-fetching when\ndoing batch imports',variable=self.fetch_on_batch).pack(padx=5,pady=5,side='left')
+        btn=ttk.Button(t3_frm17,text='Save as my settings',width=20,command=self.save_settings).pack(padx=10,pady=10,anchor='n')
+        btn=ttk.Button(t3_frm17,text='Reset settings',width=20,command=lambda:self.load_settings(reset=True)).pack(padx=10,pady=10,anchor='s')
+        
         t3_frm1.grid(row=1,column=1,sticky='w')
         t3_frm2.grid(row=2,column=1,sticky='w')
         t3_frm3.grid(row=3,column=1,sticky='w')
@@ -283,8 +336,18 @@ class RootWindow(tk.Tk):
         t3_frm5.grid(row=5,column=1,sticky='w')
         t3_frm6.grid(row=6,column=1,sticky='w')
         t3_frm7.grid(row=7,column=1,sticky='w')
-        t3_frm8.grid(row=8,column=1,padx=10,pady=70,sticky='w')
-
+        t3_frm8.grid(row=8,column=1,padx=40,sticky='w')
+        t3_frm9.grid(row=9,column=1,padx=40,sticky='w')
+        self.t3_frm10.grid(row=10,column=1,padx=80,sticky='w')
+        t3_frm11.grid(row=11,column=1,sticky='w')
+        t3_frm12.grid(row=12,column=1,padx=40,sticky='w')
+        t3_frm13.grid(row=13,column=1,padx=40,sticky='w')
+        t3_frm14.grid(row=14,column=1,padx=40,sticky='w')
+        t3_frm15.grid(row=15,column=1,padx=40,sticky='w')
+        self.t3_frm16.grid(row=16,column=1,padx=80,sticky='w')
+        t3_frm17.grid(row=17,column=2,sticky='e')
+        
+        
         # Tab 4
         t4_frm0=ttk.Frame(tab4)
         t4_frm1=ttk.Frame(tab4)
@@ -304,7 +367,7 @@ class RootWindow(tk.Tk):
         lbl=ttk.Label(t4_frm2,text='Running version:\nTargeted for:').pack(padx=5,pady=1,side='left')
         lbl=ttk.Label(t4_frm2,text=__VERSION__+'\n'+targetversion).pack(padx=5,pady=1,side='left')
         lbl=ttk.Label(t4_frm3,text='Latest release:').pack(padx=5,pady=5,side='left')
-        lbl=ttk.Label(t4_frm3,text=self.versions['gui_new']).pack(padx=5,pady=1,side='left')
+        lbl=ttk.Label(t4_frm3,textvariable=self.newest_gui_ver).pack(padx=5,pady=1,side='left')
         lbl=ttk.Label(t4_frm4,text='Update to latest release:').pack(padx=5,pady=1,side='left')
         btn=ttk.Button(t4_frm4,text='Update',command=lambda:self.update_application('gui',self.versions['gui_new'])).pack(padx=5,pady=1,side='left')
         lbl=ttk.Label(t4_frm5,text='Switch to different version:').pack(padx=5,pady=1,side='left')
@@ -316,7 +379,7 @@ class RootWindow(tk.Tk):
         lbl=ttk.Label(t4_frm8,text='running version:').pack(padx=5,pady=1,side='left')
         lbl=ttk.Label(t4_frm8,text=fnku.__VERSION__).pack(padx=5,pady=1,side='left')
         lbl=ttk.Label(t4_frm9,text='latest release:').pack(padx=5,pady=1,side='left')
-        lbl=ttk.Label(t4_frm9,text=self.versions['fnku_new']).pack(padx=5,pady=1,side='left')
+        lbl=ttk.Label(t4_frm9,textvariable=self.newest_fnku_ver).pack(padx=5,pady=1,side='left')
         lbl=ttk.Label(t4_frm10,text='Update to latest release:').pack(padx=5,pady=1,side='left')
         btn=ttk.Button(t4_frm10,text='Update',command=lambda:self.update_application('fnku',self.versions['fnku_new'])).pack(padx=5,pady=1,side='left')
         lbl=ttk.Label(t4_frm11,text='Switch to different version:').pack(padx=5,pady=1,side='left')
@@ -336,8 +399,19 @@ class RootWindow(tk.Tk):
         t4_frm9.grid(row=9,column=1,padx=25,sticky='w')
         t4_frm10.grid(row=10,column=1,padx=25,sticky='w')
         t4_frm11.grid(row=11,column=1,padx=25,sticky='w')
-        
 
+        self.load_program_revisions()   
+        self.check_config_keysite()
+        self.total_dl_size.set('Total Size:')
+        self.load_settings()
+        self.toggle_widgets()
+        self.load_title_data()
+        self.load_title_sizes()
+        self.build_database()
+        
+        if os.path.isfile('config.json'):
+            self.populate_selection_box()
+            
         ## Build an sqlite database of all the data in the titlekeys json as well as size information
         ## for the title. Raw size in bytes as well as human readable size is recorded.
         ## The database that ships with the releases are minimal, containing ONLY size information.
@@ -346,18 +420,24 @@ class RootWindow(tk.Tk):
         ## Be sure to re-comment out self.build_database() before running the program again.
         ## This will take a short while to fetch all the download size information.
         
-        #self.build_database()
 
-        if len(self.title_sizes) != len(self.title_data):
-            print('\n\nSize informataion database is out of sync with titlekeys.json.')
-            self.build_database()
-            
+        #if len(self.title_sizes) != len(self.title_data):
+            #print('\n\nSize informataion database is out of sync with titlekeys.json.')
+            ##self.set_icon()
+            #self.build_database()
+    
     def build_database(self,sizeonly=True):
+        if len(self.title_sizes) >= len(self.title_data):
+            return
         print('\nUpdating size information database now.....\n')
         dataset=[]
         compare_ids=[]
         TK = fnku.TK
-        
+        try:
+            update_count= len(self.title_data) - len(self.title_sizes)
+        except:
+            update_count = len(self.title_data)
+        message.showinfo('Update database', 'Your size info database needs to be updated. We will update '+str(update_count) +' entries now and continue when it\'s done',parent=self)
         if not os.path.isfile('data.db'):
             db=sqlite3.connect('data.db')
             cursor=db.cursor()
@@ -369,9 +449,11 @@ class RootWindow(tk.Tk):
         
         for i in cursor:
             compare_ids.append(str(i[0]))
-          
+                                                 
+        loopcounter=1
         for i in self.title_data:
             if not str(i[2]) in compare_ids:
+                print('Fetching database info, title {} of {}'.format(loopcounter,update_count))                                                                        
                 name=i[0]
                 region=i[1]
                 tid=i[2]
@@ -403,6 +485,8 @@ class RootWindow(tk.Tk):
                     os.remove('title.tmd')
                 
                 dataset.append((tid,tkey,name,region,cont,sz,total_size,tick))
+                loopcounter += 1
+                
         if len(dataset) > 0:   
             for i in dataset:
                 tid=i[0]
@@ -419,7 +503,8 @@ class RootWindow(tk.Tk):
                     cursor.execute("""INSERT INTO titles (title_id, title_key, name, region, content_type, size, ticket, raw_size) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""", (tid,tkey,name,region,cont,sz,tick,raw))
         db.commit()
         db.close()
-        print('done bulding database. Restart for changes to take effect.')
+        print('done writing to database.')
+        message.showinfo('Done','Done updatating database',parent=self)
         
     def load_title_sizes(self):
         if os.path.isfile('data.db'):
@@ -456,7 +541,6 @@ class RootWindow(tk.Tk):
                 self.dl_size_lbl.configure(text='Size: ?,')
         
         else:
-            #self.selection_box.set('')
             if self.dl_size_lbl.cget('text') != 'Size:,':
                 self.dl_size_lbl.configure(text='Size:,')
             if self.has_ticket_lbl.cget('text') != '':
@@ -472,7 +556,7 @@ class RootWindow(tk.Tk):
         
     def check_config_keysite(self):
         try:
-            with open('config.json') as cfg:
+            with open('config.json','r') as cfg:
                 config=json.load(cfg)                
                 site=config['keysite']
                 if fnku.hashlib.md5(site.encode('utf-8')).hexdigest() == fnku.KEYSITE_MD5:
@@ -506,11 +590,12 @@ class RootWindow(tk.Tk):
             dest=cwd+dir_slash+zip_name
             zfile=zipfile.ZipFile(dest,'r')
             for i in zfile.namelist():
-                data=zfile.read(i,None)
-                x=i.split("/")[1]
-                if x!='':
-                    with open(x,'wb') as p_file:
-                        p_file.write(data)                      
+                if i[-3:] in ('.py','ppm','.db','son'):
+                    data=zfile.read(i,None)
+                    x=i.split("/")[1]
+                    if x!='':
+                        with open(x,'wb') as p_file:
+                            p_file.write(data)                      
             zfile.close()           
             return True
         
@@ -524,7 +609,6 @@ class RootWindow(tk.Tk):
             print('Downloading ', url)      
             with open('update.zip', "wb") as f:
                 f.write(z.read())
-            print('\nDone.')
             
         except HTTPError as e:
             print("Error:", e.code, url)
@@ -567,6 +651,13 @@ class RootWindow(tk.Tk):
                                 self.selection_list.append(i)
                         else:
                             self.selection_list.append(i)
+                if self.filter_demo.get():
+                    for i in self.usa_selections['demo']:
+                        if self.filter_hasticket.get():
+                            if self.reverse_title_names.get(i) in self.has_ticket:
+                                self.selection_list.append(i)
+                        else:
+                            self.selection_list.append(i)
                     
             if self.filter_eur.get():
                 if self.filter_game.get():
@@ -585,6 +676,13 @@ class RootWindow(tk.Tk):
                             self.selection_list.append(i)       
                 if self.filter_update.get():
                     for i in self.eur_selections['update']:
+                        if self.filter_hasticket.get():
+                            if self.reverse_title_names.get(i) in self.has_ticket:
+                                self.selection_list.append(i)
+                        else:
+                            self.selection_list.append(i)
+                if self.filter_demo.get():
+                    for i in self.eur_selections['demo']:
                         if self.filter_hasticket.get():
                             if self.reverse_title_names.get(i) in self.has_ticket:
                                 self.selection_list.append(i)
@@ -613,6 +711,13 @@ class RootWindow(tk.Tk):
                                 self.selection_list.append(i)
                         else:
                             self.selection_list.append(i)
+                if self.filter_demo.get():
+                    for i in self.jpn_selections['demo']:
+                        if self.filter_hasticket.get():
+                            if self.reverse_title_names.get(i) in self.has_ticket:
+                                self.selection_list.append(i)
+                        else:
+                            self.selection_list.append(i)
                             
             self.selection_list.sort()
             self.selection_box.set('')
@@ -631,11 +736,53 @@ class RootWindow(tk.Tk):
         user_selected_raw=self.selection_box.get()
         self.clear_id_key_boxes()
         titleid = self.reverse_title_names[user_selected_raw]
-        self.id_box.insert('end',titleid)                
+        self.id_box.insert('end',titleid)
+
+    def toggle_widgets(self):
+        if self.show_batch.get():
+            for i in self.batch_frames:
+                i.grid()
+        else:
+            for i in self.batch_frames:
+                i.grid_remove()
+
+        if self.dl_behavior.get() == 2:
+            self.t3_frm10.grid()
+        else:
+            self.t3_frm10.grid_remove()
+        
+        if self.auto_fetching.get() == 'auto':
+            self.t3_frm16.grid()
+        else:
+            self.t3_frm16.grid_remove()
+
+    def export_to_batch(self):
+        outf = filedialog.asksaveasfilename(defaultextension='.txt')
+        if outf:
+            with open(outf,'w') as f:
+                for i in self.download_list:
+                    f.write(i[1].strip()+'\n')
+            message.showinfo('Complete','Done exporting batch job to file')
+
+    def batch_import(self):
+        titles=[]
+        inf = filedialog.askopenfilename()
+        if inf:
+            with open(inf,'r') as f:
+                lines=f.readlines()
+                for line in lines:
+                    line=line.strip().strip('\n')
+                    line=line.replace('-','')
+                    if len(line) == 16:
+                        titles.append(line)
+            if len(titles) > 0:
+                self.add_to_list(titles,batch=True)
     
     def load_title_data(self):       
         self.title_data=[]
         try:
+            if not os.path.isfile('titlekeys.json'):
+                return
             with open('titlekeys.json') as td:
                 title_data=json.load(td)
             self.errors=0
@@ -655,6 +802,9 @@ class RootWindow(tk.Tk):
                             content_type='DLC'
                         elif titleid[4:8] == '000e':
                             content_type='UPDATE'
+                        elif titleid[4:8] == '0002':
+                            content_type='DEMO'
+                            
                         if tick == '1':
                             self.has_ticket.append(titleid)
                         
@@ -676,6 +826,9 @@ class RootWindow(tk.Tk):
                                 elif content_type == 'UPDATE':
                                     if not entry2 in self.usa_selections['update']:
                                         self.usa_selections['update'].append(entry2)
+                                elif content_type == 'DEMO':
+                                    if not entry2 in self.usa_selections['demo']:
+                                        self.usa_selections['demo'].append(entry2)
                             elif region == 'EUR':
                                 if content_type == 'GAME':
                                     if not entry2 in self.eur_selections['game']:
@@ -686,6 +839,9 @@ class RootWindow(tk.Tk):
                                 elif content_type == 'UPDATE':
                                     if not entry2 in self.eur_selections['update']:
                                         self.eur_selections['update'].append(entry2)
+                                elif content_type == 'DEMO':
+                                    if not entry2 in self.eur_selections['demo']:
+                                        self.eur_selections['demo'].append(entry2)
                             elif region == 'JPN':
                                 if content_type == 'GAME':
                                     if not entry2 in self.jpn_selections['game']:
@@ -695,7 +851,10 @@ class RootWindow(tk.Tk):
                                         self.jpn_selections['dlc'].append(entry2)
                                 elif content_type == 'UPDATE':
                                     if not entry2 in self.jpn_selections['update']:
-                                        self.jpn_selections['update'].append(entry2)                
+                                        self.jpn_selections['update'].append(entry2)
+                                elif content_type == 'DEMO':
+                                    if not entry2 in self.jpn_selections['demo']:
+                                        self.jpn_selections['demo'].append(entry2)
                 except Exception as e:
                     if DEBUG:
                         print('Error on title: ' + titleid)
@@ -719,36 +878,154 @@ class RootWindow(tk.Tk):
                 return False
         except ValueError:
             return False
+
+    def fetch_related_content(self,tid):
+            if not self.fetch_dlc.get and not self.fetch_updates.get():
+                return
+            update=None
+            dlc=None
+            up_id='e'
+            dlc_id='c'
+            tryupid=tid[:7]+up_id+tid[8:]
+            trydlcid=tid[:7]+dlc_id+tid[8:]
+            if self.title_dict.get(tryupid,None):
+                update=tryupid
+            if self.title_dict.get(trydlcid,None):
+                dlc=trydlcid
+            titles={}
+            titles['update']=update
+            titles['dlc']=dlc
+            return titles
+
+    def save_settings(self):
+        x=(self.output_dir.get(),self.retry_count.get(),self.patch_demo.get(),self.patch_dlc.get(),self.tickets_only.get(),self.simulate_mode.get(),self.fetch_dlc.get(),self.fetch_updates.get(),
+                        self.remove_ignored.get(),self.auto_fetching.get(),self.fetch_on_batch.get(),self.dl_behavior.get())
+        settings = {'output_dir':x[0],'retry_count':x[1],'patch_demo':x[2],'patch_dlc':x[3],'tickets_only':x[4],'simulate_mode':x[5],'fetch_dlc':x[6],'fetch_updates':x[7],
+                    'remove_ignored':x[8],'auto_fetching':x[9],'fetch_on_batch':x[10],'dl_behavior':x[11]}
+        with open('guisettings.json','w') as f:
+            json.dump(settings,f)
+
+    def load_settings(self,reset=False):
+        if reset:
+            self.output_dir.set('')
+            self.retry_count.set(3)
+            self.patch_demo.set(True)
+            self.patch_dlc.set(True)
+            self.tickets_only.set(False)
+            self.simulate_mode.set(False)
+            self.fetch_dlc.set(True)
+            self.fetch_updates.set(True)
+            self.remove_ignored.set(True)
+            self.auto_fetching.set('prompt')
+            self.fetch_on_batch.set(False)
+            self.dl_behavior.set(1)
+            self.save_settings()
+            return
+            
+        with open('guisettings.json', 'r') as f:
+            x=json.load(f)
+        self.output_dir.set(x['output_dir'])
+        self.retry_count.set(x['retry_count'])
+        self.patch_demo.set(x['patch_demo'])
+        self.patch_dlc.set(x['patch_dlc'])
+        self.tickets_only.set(x['tickets_only'])
+        self.simulate_mode.set(x['simulate_mode'])
+        self.fetch_dlc.set(x['fetch_dlc'])
+        self.fetch_updates.set(x['fetch_updates'])
+        self.remove_ignored.set(x['remove_ignored'])
+        self.auto_fetching.set(x['auto_fetching'])
+        self.fetch_on_batch.set(x['fetch_on_batch'])
+        self.dl_behavior.set(x['dl_behavior'])
         
-    def add_to_list(self):
-        titleid = self.id_box.get().strip()
-        if len(titleid) == 16:
-            key=None        
-            name = self.title_dict[titleid].get('longname',titleid)
-            name='  '+name
-            if self.sanity_check_input(titleid,'title'):
-                pass
-            else:
-                print('Bad Title ID. Must be a 16 digit hexadecimal.')
+            
+        
+    def add_to_list(self,titles,batch=False):
+        do_add_update=False
+        do_add_dlc=False
+        fetch_bhvr=self.auto_fetching.get()
+        fetch_on_batch=self.fetch_on_batch.get()
+        fetch_updates=self.fetch_updates.get()
+        fetch_dlc=self.fetch_dlc.get()
+        if not batch:
+            if not len(titles[0]) == 16:
+                message.showerror('No title id','You did not provide a 16 digit title id')
                 return
-            key=self.title_dict[titleid].get('key',self.key_box.get().strip())
-            if key == '':
-                key=None
-            if not key or self.sanity_check_input(key,'key'):
-                pass
-            else:
-                print('Bad Key. Must be a 32 digit hexadecimal.')
-                return
-            if key: name=' *'+name
-            size=int(self.title_sizes_raw.get(titleid,0))
-            if size == 0:
-                name =' !'+name
-            entry=(name,titleid,key,size)
-            if not entry in self.download_list:
-                self.download_list.append(entry)
-            self.populate_dl_listbox()
+            if fetch_bhvr != 'disabled':               
+                if titles[0][7] == '0':
+                    fetched=self.fetch_related_content(titles[0])
+                    try:
+                        if fetched:
+                            if fetch_updates:
+                                if fetched['update']:
+                                    if fetch_bhvr == 'prompt':
+                                        if message.askyesno('Game update is available','There is an update available for this game, would you like to add it to\nthe list as well?'):
+                                            titles.append(fetched['update'])
+            
+                                    elif fetch_bhvr == 'auto':
+                                            titles.append(fetched['update'])
+                            if fetch_dlc:
+                                if fetched['dlc']:
+                                    if fetch_bhvr == 'prompt':
+                                        if message.askyesno('Game dlc is available','There is dlc available for this game, would you like to add it to\nthe list as well?'):
+                                            titles.append(fetched['dlc'])
+                                    elif fetch_bhvr == 'auto':
+                                            titles.append(fetched['dlc'])
+                    except:
+                        pass
+                    
         else:
-            print('There is no title id entered')
+            if fetch_bhvr == 'auto' and fetch_on_batch:
+                for title in titles[:]:
+                    if title[7] == '0':
+                        fetched=self.fetch_related_content(title)
+                    try:
+                        if fetched:
+                            if fetched['update'] and fetch_updates:
+                                titles.append(fetched['update'])
+                            if fetched['dlc'] and fetch_dlc:
+                                titles.append(fetched['dlc'])
+                    except Exception as e:
+                        print(e)
+                                                
+                                                                         
+        for titleid in titles:
+            if len(titleid) == 16:
+                td = self.title_dict.get(titleid,{})
+                key=None       
+                name = td.get('longname',titleid)
+                name='  '+name
+                if self.sanity_check_input(titleid,'title'):
+                    pass
+                else:
+                    print('Bad Title ID. Must be a 16 digit hexadecimal.')
+                    print('Title: '+titleid)
+                    continue
+
+                key=td.get('key',self.key_box.get().strip())
+                if key == '':
+                    key=None
+                if not key or self.sanity_check_input(key,'key'):
+                    pass
+                else:
+                    print('Bad Key. Must be a 32 digit hexadecimal.')
+                    print('Title: '+titleid)
+                    continue
+ 
+                size=int(self.title_sizes_raw.get(titleid,0))
+                if size == 0:
+                    name =' !'+name
+                entry=(name,titleid,key,size)
+                if not entry in self.download_list:
+                    self.download_list.append(entry)
+        
+        self.populate_dl_listbox()
+
+    def add_filtered_to_list(self):
+        bulk=[]
+        for i in self.selection_list:
+            if self.reverse_title_names.get(i,None):
+                bulk.append(self.reverse_title_names[i])
+        self.add_to_list(bulk,batch=True)
 
     def remove_from_list(self):
         try:
@@ -795,6 +1072,9 @@ class RootWindow(tk.Tk):
             fnku.save_config(config)
             print('done saving, you are good to go!')
             self.update_keysite_widgets()
+            self.load_title_sizes()
+            self.build_database()
+            self.populate_selection_box()
             self.nb.select(self.tab2)
         else:
             print('Wrong key site provided. Try again')
@@ -852,15 +1132,16 @@ class RootWindow(tk.Tk):
 
         self.versions['fnku_all']=fnku_all
         self.versions['fnku_new']=fnku_newest
+        self.newest_fnku_ver.set(fnku_newest)
         self.versions['gui_all']=[str(i) for i in gui_all]
         self.versions['gui_new']=str(gui_newest)
+        self.newest_gui_ver.set(gui_newest)
+        self.gui_switchv_box.configure(values=[x for x in self.versions['gui_all']])
+        self.fnku_switchv_box.configure(values=[x for x in self.versions['fnku_all']])
         
-    def download_clicked(self,dl_method):
+    def download_clicked(self):
         title_list=[]
         key_list=[]
-        out_dir=self.output_dir.get().strip()
-        if len(out_dir)==0:
-            out_dir=None
         rtry_count=self.retry_count.get()
         ptch_demo=self.patch_demo.get()
         ptch_dlc=self.patch_dlc.get()
@@ -870,68 +1151,50 @@ class RootWindow(tk.Tk):
             title_list.append(i[1])
             key_list.append(i[2])
             
-        if dl_method == 1:
-            for i in title_list:
-                if not i in self.has_ticket:
-                    print('You chose online ticket method but have items in the download list that do not have\nan online ticket.')
-                    return
-            for i in self.download_list[:]:
-                t=i[1]
-                k=None
-                n=self.title_dict[t].get('name', '').strip()
-                n=n+'_'+self.title_dict[t].get('type','').strip()
-                r=self.title_dict[t].get('region','').strip()
+        ignored=[]
+        behavior=self.dl_behavior.get()
+        for i in self.download_list[:]:
+            out_dir=self.output_dir.get().strip()
+            t=i[1]
+            k=i[2]
+            td=self.title_dict.get(t,{})
+            n=td.get('name','').strip()
+            if td.get('type','').strip() == 'DEMO':
+                n=n+'_Demo'
+            r=td.get('region','').strip()
                 
-                fnku.process_title_id(t, k, name=n, region=r, output_dir=out_dir, retry_count=rtry_count, onlinetickets=True, patch_demo=ptch_demo,
+            if t in self.has_ticket or td.get('type','') == 'UPDATE':
+                fnku.process_title_id(t, None, name=n, region=r, output_dir=out_dir, retry_count=rtry_count, onlinetickets=True, patch_demo=ptch_demo,
                                       patch_dlc=ptch_demo, simulate=sim, tickets_only=tick_only)
-               
                 self.download_list.remove(i)
-                self.populate_dl_listbox()
-                root.update()
-
-        elif dl_method == 2:
-            for i in key_list:
-                if not i:
-                    print('You chose a key method without providing a key for one or more titles')
-                    return
                 
-            for i in self.download_list[:]:
-                t=i[1]
-                k=i[2]
-                n=self.title_dict[t].get('name', '').strip()
-                n=n+'_'+self.title_dict[t].get('type','').strip()
-                r=self.title_dict[t].get('region','').strip()
+            else:
+                if behavior == 2:
+                    if self.remove_ignored.get():
+                        self.download_list.remove(i)
+                        self.populate_dl_listbox()
+                        root.update()
+                    ignored.append(i[1])
+                    continue
                 
                 fnku.process_title_id(t, k, name=n, region=r, output_dir=out_dir, retry_count=rtry_count, patch_demo=ptch_demo,
                                       patch_dlc=ptch_demo, simulate=sim, tickets_only=tick_only)
-               
                 self.download_list.remove(i)
-                self.populate_dl_listbox()
-                root.update()
-                
-                    
-        # I need to add bulk selection to the download list instead of using the -regions option of FunKiiU
-        # There is also no default behavior, ie: Download legit tickets if they exist and create a fake
-        # ticket if not, or ignore titles without online ticket etc.. I need to give behavior options 
-        elif dl_method == 3:
-            regions=[]
-            if self.region_usa.get():
-                regions.append('USA')
-            if self.region_eur.get():
-                regions.append('EUR')
-            if self.region_jpn.get():
-                regions.append('JPN')
-            if len(regions)>0:
-                fnku.main(download_regions=regions,output_dir=output_dir,retry_count=retry_count,
-                          patch_demo=patch_demo,patch_dlc=patch_dlc,tickets_only=tickets_only,simulate=simulate,download=False)
-            else:
-                print('No regions selected. Try again.')
+
             
-                
-    
+            self.populate_dl_listbox()
+            root.update()           
+        print(str(len(ignored))+' titles were ignored and not downloaded')
+
+    def set_icon(self):
+        icon = PhotoImage(file='icon.ppm')
+        self.tk.call('wm', 'iconphoto', self._w, icon)
+        
         
 if __name__ == '__main__':
     root=RootWindow()
     root.title('FunKii-UI')
     root.resizable(width=False,height=False)
+    root.set_icon()
     root.mainloop()
+    
