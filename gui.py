@@ -29,7 +29,7 @@ import sys
 import sqlite3
 
 try:
-    import FunKiiU as fnku
+    import FunKiiU_Mod as fnku
 except ImportError:
     fnku = None
     
@@ -37,9 +37,9 @@ PhotoImage=tk.PhotoImage
 DEBUG = False
 
 __VERSION__="2.1.5"
-targetversion="FunKiiU v2.2"
+targetversion="FunKiiU_Mod v2.2"
 current_gui=LooseVersion(__VERSION__)
-
+fnku_buffer = []
 
 
 if os.name == 'nt':
@@ -86,10 +86,12 @@ class RootWindow(tk.Tk):
         self.tab2 = ttk.Frame(self.nb)
         tab3 = ttk.Frame(self.nb)
         tab4 = ttk.Frame(self.nb)
+        self.tab5 = ttk.Frame(self.nb)
         self.nb.add(tab1,text="Welcome")
         self.nb.add(self.tab2,text="Download")
         self.nb.add(tab3,text="Options")
         self.nb.add(tab4,text="Updates")
+        self.nb.add(self.tab5,text="Progress")
         self.nb.pack(fill="both", expand=True)
         self.output_dir=tk.StringVar()
         self.retry_count=tk.IntVar(value=3)
@@ -166,12 +168,12 @@ class RootWindow(tk.Tk):
         global fnku
         if not fnku:
             self.set_icon()
-            message.showinfo('Missing FunKiiU','You are missing FunKiiU. We are going to download it for you now.',parent=self)
+            message.showinfo('Missing FunKiiU_Mod','You are missing FunKiiU_Mod. We are going to download it for you now.',parent=self)
             self.update_application('fnku',targetversion.split('v')[1])
-            import FunKiiU as fnku
+            import FunKiiU_Mod as fnku
             global current_fnku
             current_fnku=LooseVersion(str(fnku.__VERSION__))
-            message.showinfo('Done','FunKiiU has been downloded for you. Enjoy!',parent=self)
+            message.showinfo('Done','FunKiiU_Mod has been downloded for you. Enjoy!',parent=self)
             
         
         # Tab2
@@ -422,6 +424,16 @@ class RootWindow(tk.Tk):
         
 
         #self.build_database()
+
+        #tab 5
+        t5_frm0=ttk.Frame(self.tab5)
+
+        self.progressbox = tk.Text(t5_frm0)
+
+        self.progressbox.pack()
+
+        t5_frm0.grid(column=1,row=1)
+            
     
     def build_database(self,sizeonly=True):
         if len(self.title_sizes) >= len(self.title_data):
@@ -466,7 +478,7 @@ class RootWindow(tk.Tk):
                     
                 baseurl = 'http://ccs.cdn.c.shop.nintendowifi.net/ccs/download/{}'.format(tid)
 
-                if not fnku.download_file(baseurl + '/tmd', 'title.tmd', 1):
+                if not fnku.download_file(self,baseurl + '/tmd', 'title.tmd', 1):
                     print('ERROR: Could not download TMD...')
                 else:
                     with open('title.tmd', 'rb') as f:
@@ -619,7 +631,7 @@ class RootWindow(tk.Tk):
             keysite = fnku.get_keysite()
             print(u'Downloading/updating data from {0}'.format(keysite))
 
-            if not fnku.download_file('https://{0}/json'.format(keysite), 'titlekeys.json', 3):
+            if not fnku.download_file(self,'https://{0}/json'.format(keysite), 'titlekeys.json', 3):
                 print('ERROR: Could not download data file...\n')
             else:
                 print('DONE....Downloaded titlekeys.json succesfully')
@@ -722,7 +734,7 @@ class RootWindow(tk.Tk):
             self.selection_box.set('')
             self.selection_box.configure(values=(self.selection_list))
             self.selection_box.set_completion_list(self.selection_list)
-            print('Succesfully populated the selection box..')
+            #print('Succesfully populated the selection box..')
         except Exception as e:
             print('Something happened while trying to populate the selection box...')
             print('ERROR:' ,e)
@@ -898,9 +910,11 @@ class RootWindow(tk.Tk):
 
     def save_settings(self):
         x=(self.output_dir.get(),self.retry_count.get(),self.patch_demo.get(),self.patch_dlc.get(),self.tickets_only.get(),self.simulate_mode.get(),self.fetch_dlc.get(),self.fetch_updates.get(),
-                        self.remove_ignored.get(),self.auto_fetching.get(),self.fetch_on_batch.get(),self.dl_behavior.get())
+           self.remove_ignored.get(),self.auto_fetching.get(),self.fetch_on_batch.get(),self.dl_behavior.get(),self.filter_usa.get(),self.filter_eur.get(),self.filter_jpn.get(),self.filter_game.get(),
+           self.filter_update.get(),self.filter_dlc.get(),self.filter_demo.get(),self.filter_hasticket.get(),self.show_batch.get())
         settings = {'output_dir':x[0],'retry_count':x[1],'patch_demo':x[2],'patch_dlc':x[3],'tickets_only':x[4],'simulate_mode':x[5],'fetch_dlc':x[6],'fetch_updates':x[7],
-                    'remove_ignored':x[8],'auto_fetching':x[9],'fetch_on_batch':x[10],'dl_behavior':x[11]}
+                    'remove_ignored':x[8],'auto_fetching':x[9],'fetch_on_batch':x[10],'dl_behavior':x[11],'filter_usa':x[12],'filter_eur':x[13],'filter_jpn':x[14],'filter_game':x[15],
+                    'filter_update':x[16],'filter_dlc':x[17],'filter_demo':x[18],'filter_hasticket':x[19],'show_batch':x[20]}
         with open('guisettings.json','w') as f:
             json.dump(settings,f)
 
@@ -918,6 +932,15 @@ class RootWindow(tk.Tk):
             self.auto_fetching.set('prompt')
             self.fetch_on_batch.set(False)
             self.dl_behavior.set(1)
+            self.filter_usa.set(True)
+            self.filter_eur.set(True)
+            self.filter_jpn.set(True)
+            self.filter_game.set(True)
+            self.filter_update.set(True)
+            self.filter_dlc.set(True)
+            self.filter_demo.set(True)
+            self.filter_hasticket.set(False)
+            self.show_batch.set(False)
             self.save_settings()
             return
             
@@ -935,6 +958,15 @@ class RootWindow(tk.Tk):
         self.auto_fetching.set(x['auto_fetching'])
         self.fetch_on_batch.set(x['fetch_on_batch'])
         self.dl_behavior.set(x['dl_behavior'])
+        self.filter_usa.set(x['filter_usa'])
+        self.filter_eur.set(x['filter_eur'])
+        self.filter_jpn.set(x['filter_jpn'])
+        self.filter_game.set(x['filter_game'])
+        self.filter_update.set(x['filter_update'])
+        self.filter_dlc.set(x['filter_dlc'])
+        self.filter_demo.set(x['filter_demo'])
+        self.filter_hasticket.set(x['filter_hasticket'])
+        self.show_batch.set(x['show_batch'])
         
             
         
@@ -1163,7 +1195,7 @@ class RootWindow(tk.Tk):
             r=td.get('region','').strip()
                 
             if t in self.has_ticket or td.get('type','') == 'UPDATE':
-                fnku.process_title_id(t, None, name=n, region=r, output_dir=out_dir, retry_count=rtry_count, onlinetickets=True, patch_demo=ptch_demo,
+                fnku.process_title_id(self,t, None, name=n, region=r, output_dir=out_dir, retry_count=rtry_count, onlinetickets=True, patch_demo=ptch_demo,
                                       patch_dlc=ptch_demo, simulate=sim, tickets_only=tick_only)
                 self.download_list.remove(i)
                 
@@ -1188,7 +1220,14 @@ class RootWindow(tk.Tk):
     def set_icon(self):
         icon = PhotoImage(file='icon.ppm')
         self.tk.call('wm', 'iconphoto', self._w, icon)
-        
+
+    def update_funkiiu_progress(self,progress):
+        self.nb.select(self.tab5)
+        p = 'Downloading {}/{}    {}%'.format(progress[0],progress[1],progress[4])
+        self.progressbox.delete("0.0", tk.END)
+        self.progressbox.insert('end', p)
+        self.update()
+        #print(progress)
         
 if __name__ == '__main__':
     root=RootWindow()
@@ -1196,4 +1235,5 @@ if __name__ == '__main__':
     root.resizable(width=False,height=False)
     root.set_icon()
     root.mainloop()
+    root.save_settings()
     
