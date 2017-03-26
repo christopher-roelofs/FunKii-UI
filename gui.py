@@ -2,6 +2,7 @@
 
 
 try: #Python 2 imports
+    from unidecode import unidecode
     import Tkinter as tk
     import ttk
     import tkFileDialog as filedialog
@@ -11,6 +12,7 @@ try: #Python 2 imports
     from urllib2 import urlopen, URLError, HTTPError
     
 except ImportError: #Python 3 imports
+    from unidecode import unidecode
     import tkinter as tk
     from tkinter import ttk
     from tkinter import filedialog
@@ -1157,7 +1159,7 @@ class RootWindow(tk.Tk):
             t=i[1]
             k=i[2]
             td=self.title_dict.get(t,{})
-            n=td.get('name','').strip()
+            n=unidecode(td.get('name','').strip())
             if td.get('type','').strip() == 'DEMO':
                 n=n+'_Demo'
             r=td.get('region','').strip()
